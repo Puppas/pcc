@@ -19,6 +19,8 @@ typedef enum {
     TK_EOF
 } TokenKind;
 
+typedef struct Token Token;
+
 struct Token {
     TokenKind kind;
     Token *next;
@@ -27,7 +29,6 @@ struct Token {
     int len;
 };
 
-typedef struct Token Token;
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
@@ -54,6 +55,7 @@ typedef enum {
     ND_NUM
 } NodeKind;
 
+typedef struct Node Node;
 
 struct Node {
     NodeKind kind;
@@ -61,8 +63,6 @@ struct Node {
     Node *rhs;
     int val;
 };
-
-typedef struct Node Node;
 
 
 Node *parse(Token *tok);

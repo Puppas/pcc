@@ -143,7 +143,7 @@ static Node *unary(Token **rest, Token *tok) {
     }
     
     if(equal(tok, "-")) {
-        return unary(rest, tok->next);
+        return new_unary(ND_NEG, unary(rest, tok->next));
     }
 
     return primary(rest, tok);
