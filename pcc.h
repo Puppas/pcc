@@ -14,8 +14,9 @@
 //
 
 typedef enum {
-    TK_PUNCT,
-    TK_NUM,
+    TK_PUNCT,  // Punctuators
+    TK_IDENT,  // Identifiers
+    TK_NUM, 
     TK_EOF
 } TokenKind;
 
@@ -43,16 +44,18 @@ Token *tokenize(char *input);
 //
 
 typedef enum {
-    ND_ADD,
-    ND_SUB,
-    ND_MUL,
-    ND_DIV,
-    ND_NEG,
-    ND_EQ,
-    ND_NE,
-    ND_LT,
-    ND_LE,
-    ND_EXPR_STMT,
+    ND_ADD,         // + 
+    ND_SUB,         // -
+    ND_MUL,         // *
+    ND_DIV,         // /
+    ND_NEG,         // unary -
+    ND_EQ,          // ==
+    ND_NE,          // !=
+    ND_LT,          // <
+    ND_LE,          // <=
+    ND_ASSIGN,      // =
+    ND_EXPR_STMT,   // expression statement
+    ND_VAR,         // variable
     ND_NUM
 } NodeKind;
 
@@ -63,6 +66,7 @@ struct Node {
     Node *next;
     Node *lhs;
     Node *rhs;
+    char name;
     int val;
 };
 

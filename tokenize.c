@@ -90,7 +90,7 @@ Token *tokenize(char *p)
         if(isspace(*p)){
             ++p;
             continue;
-        }
+        }        
 
         if(isdigit(*p)){
             cur = cur->next = new_token(TK_NUM, p, p);
@@ -100,8 +100,14 @@ Token *tokenize(char *p)
             continue;
         }
 
+        if('a' <= *p && *p <= 'z') {
+            cur = cur->next = new_token(TK_IDENT, p, p + 1);
+            ++p;
+            continue;
+        }
+
         int punct_len = read_punct(p);
-        if(punct_len){
+        if(punct_len) {
             cur = cur->next = new_token(TK_PUNCT, p, p + punct_len);
             p += cur->len;
             continue;
