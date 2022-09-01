@@ -1,6 +1,8 @@
 #ifndef PCC_H
 #define PCC_H
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -25,7 +27,7 @@ typedef struct Token Token;
 struct Token {
     TokenKind kind;
     Token *next;
-    int val;
+    int val; // used if kind is TK_NUM
     char *loc;
     int len;
 };
@@ -43,6 +45,27 @@ Token *tokenize(char *input);
 // parse.c
 //
 
+typedef struct Node Node;
+
+// local variable
+typedef struct Obj Obj;
+struct Obj
+{
+    Obj *next;
+    char *name;     // variable name
+    int offset;     
+};
+
+typedef struct Function Function;
+struct Function
+{
+    Node *body;
+    Obj *locals;
+    int stack_size;
+};
+
+
+
 typedef enum {
     ND_ADD,         // + 
     ND_SUB,         // -
@@ -59,26 +82,25 @@ typedef enum {
     ND_NUM
 } NodeKind;
 
-typedef struct Node Node;
 
 struct Node {
     NodeKind kind;
     Node *next;
     Node *lhs;
     Node *rhs;
-    char name;
-    int val;
+    Obj *var;       // used if kind == ND_VAR
+    int val;        // used if kind == ND_NUM
 };
 
 
-Node *parse(Token *tok);
+Function *parse(Token *tok);
 
 
 //
 // codegen.c
 //
 
-void codegen(Node *node);
+void codegen(Function *prog);
 
 
 #endif /* PCC_H */
