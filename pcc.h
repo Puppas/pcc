@@ -78,6 +78,8 @@ typedef enum {
     ND_LT,          // <
     ND_LE,          // <=
     ND_ASSIGN,      // =
+    ND_ADDR,        // unary &
+    ND_DEREF,       // unary *
     ND_RETURN,      // return
     ND_IF,          // if
     ND_FOR,         // for or while
@@ -90,6 +92,7 @@ typedef enum {
 
 struct Node {
     NodeKind kind;  
+    Token *tok;
     Node *next;
     Node *lhs;
     Node *rhs;
