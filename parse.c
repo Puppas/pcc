@@ -75,6 +75,8 @@ static Obj *new_lvar(char *name)
 //       | "return" expr ";"
 //       | "{" compound-stmt
 //       | "if" "(" expr ")" stmt ("else" stmt)?
+//       | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+//       | "while" "(" expr ")" stmt
 static Node *stmt(Token **rest, Token *tok)
 {
   if(equal(tok, "return")) {
@@ -93,6 +95,35 @@ static Node *stmt(Token **rest, Token *tok)
       node->els = stmt(&tok, tok->next);
     }
     *rest = tok;
+    return node;
+  }
+
+  if (equal(tok, "for")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+    
+    node->init = expr_stmt(&tok, tok);
+    
+    if(!equal(tok, ";")) {
+      node->cond = expr(&tok, tok);
+    }
+    tok = skip(tok, ";");
+    
+    if(!equal(tok, ")")) {
+      node->inc = expr(&tok, tok);
+    }
+    tok = skip(tok, ")");
+
+    node->then = stmt(rest, tok);
+    return node;
+  }
+
+  if (equal(tok, "while")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+    node->cond = expr(&tok, tok);
+    tok = skip(tok, ")");
+    node->then = stmt(rest, tok);
     return node;
   }
 
