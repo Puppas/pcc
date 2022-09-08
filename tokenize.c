@@ -53,6 +53,16 @@ Token *skip(Token *tok, char *op)
 }
 
 
+bool consume(Token **rest, Token *tok, char *str) {
+    if (equal(tok, str)) {
+        *rest = tok->next;
+        return true;
+    }
+    *rest = tok;
+    return false;
+}
+
+
 static Token *new_token(TokenKind kind, char *start, char *end)
 {
     Token *tok = calloc(1, sizeof(Token));
@@ -91,7 +101,7 @@ static int read_punct(char *p)
 
 
 static bool is_keyword(Token *tok) {
-    static char *kw[] = {"return", "if", "else", "for", "while"};
+    static char *kw[] = {"return", "if", "else", "for", "while", "int"};
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
         if (equal(tok, kw[i]))
             return true;
