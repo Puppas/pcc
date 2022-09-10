@@ -2,6 +2,9 @@
 
 
 static int depth;
+static char *argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+static Function *current_fn;
+
 static void gen_expr(Node *node);
 
 static int count() {
@@ -73,6 +76,22 @@ static void gen_expr(Node *node) {
         pop("%rdi");
         printf("  mov %%rax, (%%rdi)\n");
         return;
+    case ND_FUNCALL: {
+        int nargs = 0;
+        for (Node *arg = node->args; arg; arg = arg->next) {
+            gen_expr(arg);
+            push();
+            ++nargs;
+        }
+
+        for (int i = nargs - 1; i >= 0; --i) {
+            pop(argreg[i]);
+        }
+
+        printf("  mov $0, %%rax\n");
+        printf("  call %s\n", node->funcname);
+        return;
+    }
     }
 
     gen_expr(node->rhs);
@@ -163,7 +182,7 @@ static void gen_stmt(Node *node) {
         
     case ND_RETURN:
         gen_expr(node->lhs);
-        printf("  jmp .L.return\n");
+        printf("  jmp .L.return.%s\n", current_fn->name);
         return;
     
     case ND_EXPR_STMT:
@@ -174,32 +193,44 @@ static void gen_stmt(Node *node) {
     error_tok(node->tok, "invalid statement");
 }
 
+// Assign offsets to local variables.
 static void assign_lvar_offsets(Function *prog) {
+  for (Function *fn = prog; fn; fn = fn->next) {
     int offset = 0;
-    for (Obj *var = prog->locals; var; var = var->next) {
-        offset += 8;
-        var->offset = -offset;
+    for (Obj *var = fn->locals; var; var = var->next) {
+      offset += 8;
+      var->offset = -offset;
     }
-    prog->stack_size = align_to(offset, 16);
+    fn->stack_size = align_to(offset, 16);
+  }
 }
 
 
 
 void codegen(Function *prog) {
-    assign_lvar_offsets(prog);
-
-    printf("  .global main\n");
-    printf("main:\n");
+  assign_lvar_offsets(prog);
+  for (Function *fn = prog; fn; fn = fn->next) {
+    printf("  .globl %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    current_fn = fn;
 
     printf("  push %%rbp\n");
     printf("  mov %%rsp, %%rbp\n");
-    printf("  sub $%d, %%rsp\n", prog->stack_size);
+    printf("  sub $%d, %%rsp\n", fn->stack_size);
 
-    gen_stmt(prog->body);
+
+    int i = 0;
+    for (Obj *var = fn->params; var; var = var->next) {
+        printf("  mov %s, %d(%%rbp)\n", argreg[i++], var->offset);
+    }
+
+    // generate assmebly code
+    gen_stmt(fn->body);
     assert(depth == 0);
 
-    printf(".L.return:\n");
+    printf(".L.return.%s:\n", fn->name);
     printf("  mov %%rbp, %%rsp\n");
     printf("  pop %%rbp\n");
     printf("  ret\n");
+  }
 }
