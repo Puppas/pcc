@@ -15,6 +15,7 @@ static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
+static Node *postfix(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
@@ -115,9 +116,9 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 
 
 
-// type-suffix = "(" func-params
-//             | "[" num "]"
-//             | ε
+// type-suffix -> "(" func-params
+//              | "[" num "]" type-suffix
+//              | ε
 static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
   if (equal(tok, "(")) {
     return func_params(rest, tok->next, ty);
@@ -125,7 +126,8 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
 
   if(equal(tok, "[")) {
     int sz = get_number(tok->next);
-    *rest = skip(tok->next->next, "]");
+    tok = skip(tok->next->next, "]");
+    ty = type_suffix(rest, tok, ty);
     return array_of(ty, sz);
   }
 
@@ -444,8 +446,8 @@ static Node *mul(Token **rest, Token *tok) {
   }
 }
 
-// unary = ("+" | "-" | "&" | "*") unary
-//       | primary
+// unary -> ("+" | "-" | "&" | "*") unary
+//        | postfix
 static Node *unary(Token **rest, Token *tok) {
   if (equal(tok, "+"))
     return unary(rest, tok->next);
@@ -459,7 +461,24 @@ static Node *unary(Token **rest, Token *tok) {
   if (equal(tok, "*")) 
     return new_unary(ND_DEREF, unary(rest, tok->next), tok);
 
-  return primary(rest, tok);
+  return postfix(rest, tok);
+}
+
+
+// postfix -> primary("[" expr "]")*
+static Node *postfix(Token **rest, Token *tok) {
+  Node *node = primary(&tok, tok);
+
+  while(equal(tok, "[")) {
+    // x[y] equals *(x+y)
+    Token *start = tok;
+    Node *idx = expr(&tok, tok->next);
+    tok = skip(tok, "]");
+    node = new_unary(ND_DEREF, new_add(node, idx, start), start);
+  }
+
+  *rest = tok;
+  return node;
 }
 
 
