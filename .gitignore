@@ -6,3 +6,4 @@
 /tmp*
 /pcc
 build/
+*vscode/

@@ -11,34 +11,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 typedef struct Type Type;
 typedef struct Node Node;
-
-
 
 //
 // tokenize.c
 //
 
-typedef enum {
+typedef enum
+{
     TK_PUNCT,   // Punctuators
     TK_IDENT,   // Identifiers
     TK_KEYWORD, // Keywords
-    TK_NUM, 
+    TK_NUM,
     TK_EOF
 } TokenKind;
 
 typedef struct Token Token;
 
-struct Token {
+struct Token
+{
     TokenKind kind;
     Token *next;
     int val; // used if kind is TK_NUM
     char *loc;
     int len;
 };
-
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
@@ -47,7 +45,6 @@ bool equal(Token *tok, char *op);
 Token *skip(Token *tok, char *op);
 bool consume(Token **rest, Token *tok, char *str);
 Token *tokenize(char *input);
-
 
 //
 // parse.c
@@ -58,9 +55,9 @@ typedef struct Obj Obj;
 struct Obj
 {
     Obj *next;
-    char *name;     // variable name
+    char *name; // variable name
     Type *ty;
-    int offset;     
+    int offset;
 };
 
 typedef struct Function Function;
@@ -75,34 +72,33 @@ struct Function
     int stack_size;
 };
 
-
-
-typedef enum {
-    ND_ADD,         // + 
-    ND_SUB,         // -
-    ND_MUL,         // *
-    ND_DIV,         // /
-    ND_NEG,         // unary -
-    ND_EQ,          // ==
-    ND_NE,          // !=
-    ND_LT,          // <
-    ND_LE,          // <=
-    ND_ASSIGN,      // =
-    ND_ADDR,        // unary &
-    ND_DEREF,       // unary *
-    ND_RETURN,      // return
-    ND_IF,          // if
-    ND_FOR,         // for or while
-    ND_BLOCK,       // {...}
+typedef enum
+{
+    ND_ADD,    // +
+    ND_SUB,    // -
+    ND_MUL,    // *
+    ND_DIV,    // /
+    ND_NEG,    // unary -
+    ND_EQ,     // ==
+    ND_NE,     // !=
+    ND_LT,     // <
+    ND_LE,     // <=
+    ND_ASSIGN, // =
+    ND_ADDR,   // unary &
+    ND_DEREF,  // unary *
+    ND_RETURN, // return
+    ND_IF,     // if
+    ND_FOR,    // for or while
+    ND_BLOCK,  // {...}
     ND_FUNCALL,
-    ND_EXPR_STMT,   // expression statement
-    ND_VAR,         // variable
+    ND_EXPR_STMT, // expression statement
+    ND_VAR,       // variable
     ND_NUM
 } NodeKind;
 
-
-struct Node {
-    NodeKind kind;  
+struct Node
+{
+    NodeKind kind;
     Token *tok;
     Type *ty;
     Node *next;
@@ -114,42 +110,44 @@ struct Node {
     Node *then;
     Node *els;
     Node *init;
-    Node *inc;  
+    Node *inc;
 
     // block
-    Node *body;     
+    Node *body;
 
     // function name
     char *funcname;
     Node *args;
 
-    Obj *var;       // used if kind == ND_VAR
-    int val;        // used if kind == ND_NUM
+    Obj *var; // used if kind == ND_VAR
+    int val;  // used if kind == ND_NUM
 };
 
-
 Function *parse(Token *tok);
-
 
 //
 //  type.c
 //
-typedef enum {
+typedef enum
+{
     TY_INT,
     TY_PTR,
-    TY_FUNC
+    TY_FUNC,
+    TY_ARRAY
 } TypeKind;
-
 
 struct Type
 {
     TypeKind kind;
+    int size; // returned by sizeof()
 
-    // pointer
+    // pointer or array
     Type *base;
 
     // declaration
     Token *name;
+
+    int array_len;
 
     // function type
     Type *return_ty;
@@ -163,14 +161,13 @@ bool is_integer(Type *ty);
 Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
+Type *array_of(Type *base, int size);
 void add_type(Node *node);
-
 
 //
 // codegen.c
 //
 
 void codegen(Function *prog);
-
 
 #endif /* PCC_H */
