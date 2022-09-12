@@ -50,27 +50,27 @@ Token *tokenize(char *input);
 // parse.c
 //
 
-// local variable
+// variable or function
 typedef struct Obj Obj;
 struct Obj
 {
     Obj *next;
-    char *name; // variable name
+    char *name; 
     Type *ty;
+    bool is_local; // local or global
+    
+    // local variable
     int offset;
-};
 
-typedef struct Function Function;
-struct Function
-{
-    Function *next;
-    char *name;
+    bool is_function;
+
+    // function
     Obj *params;
-
     Node *body;
     Obj *locals;
     int stack_size;
 };
+
 
 typedef enum
 {
@@ -123,7 +123,7 @@ struct Node
     int val;  // used if kind == ND_NUM
 };
 
-Function *parse(Token *tok);
+Obj *parse(Token *tok);
 
 //
 //  type.c
@@ -168,6 +168,6 @@ void add_type(Node *node);
 // codegen.c
 //
 
-void codegen(Function *prog);
+void codegen(Obj *prog);
 
 #endif /* PCC_H */

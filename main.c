@@ -8,7 +8,7 @@ int main(int argc, char **argv)
     }
 
     Token *tok = tokenize(argv[1]);
-    Function *prog = parse(tok);
+    Obj *prog = parse(tok);
     codegen(prog);
     return 0;
 }

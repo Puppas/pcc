@@ -3,7 +3,7 @@
 
 static int depth;
 static char *argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
-static Function *current_fn;
+static Obj *current_fn;
 
 static void gen_expr(Node *node);
 
@@ -35,7 +35,12 @@ static int align_to(int n, int align) {
 static void gen_addr(Node *node) {
     switch (node->kind) {
     case ND_VAR:
-        printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
+        if (node->var->is_local) {
+            printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
+        }
+        else {
+            printf("  lea %s(%%rip), %%rax\n", node->var->name);
+        }
         return;
     case ND_DEREF:
         gen_expr(node->lhs);
@@ -208,8 +213,12 @@ static void gen_stmt(Node *node) {
 }
 
 // Assign offsets to local variables.
-static void assign_lvar_offsets(Function *prog) {
-  for (Function *fn = prog; fn; fn = fn->next) {
+static void assign_lvar_offsets(Obj *prog) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
+    if(!fn->is_function) {
+        continue;
+    }
+
     int offset = 0;
     for (Obj *var = fn->locals; var; var = var->next) {
       offset += var->ty->size;
@@ -220,31 +229,53 @@ static void assign_lvar_offsets(Function *prog) {
 }
 
 
+static void emit_data(Obj *prog) {
+    for (Obj *var = prog; var; var = var->next) {
+        if(var->is_function) {
+            continue;
+        }
 
-void codegen(Function *prog) {
-  assign_lvar_offsets(prog);
-  for (Function *fn = prog; fn; fn = fn->next) {
-    printf("  .globl %s\n", fn->name);
-    printf("%s:\n", fn->name);
-    current_fn = fn;
-
-    printf("  push %%rbp\n");
-    printf("  mov %%rsp, %%rbp\n");
-    printf("  sub $%d, %%rsp\n", fn->stack_size);
-
-
-    int i = 0;
-    for (Obj *var = fn->params; var; var = var->next) {
-        printf("  mov %s, %d(%%rbp)\n", argreg[i++], var->offset);
+        printf("  .data\n");
+        printf("  .globl %s\n", var->name);
+        printf("%s:\n", var->name);
+        printf("  .zero %d\n", var->ty->size);
     }
+}
 
-    // generate assmebly code
-    gen_stmt(fn->body);
-    assert(depth == 0);
 
-    printf(".L.return.%s:\n", fn->name);
-    printf("  mov %%rbp, %%rsp\n");
-    printf("  pop %%rbp\n");
-    printf("  ret\n");
-  }
+static void emit_text(Obj *prog) {
+    for (Obj *fn = prog; fn; fn = fn->next) {
+        if(!fn->is_function) {
+            continue;
+        }
+
+        printf("  .globl %s\n", fn->name);
+        printf("  .text\n");
+        printf("%s:\n", fn->name);
+        current_fn = fn;
+
+        printf("  push %%rbp\n");
+        printf("  mov %%rsp, %%rbp\n");
+        printf("  sub $%d, %%rsp\n", fn->stack_size);
+    
+        int i = 0;
+        for (Obj *var = fn->params; var; var = var->next) {
+            printf("  mov %s, %d(%%rbp)\n", argreg[i++], var->offset);
+        }
+
+        gen_stmt(fn->body);
+        assert(depth == 0);
+
+        printf(".L.return.%s:\n", fn->name);
+        printf("  mov %%rbp, %%rsp\n");
+        printf("  pop %%rbp\n");
+        printf("  ret\n");
+    }
+}
+
+
+void codegen(Obj *prog) {
+    assign_lvar_offsets(prog);
+    emit_data(prog);
+    emit_text(prog);
 }
