@@ -14,6 +14,15 @@
 typedef struct Type Type;
 typedef struct Node Node;
 
+
+//
+// strings.c
+//
+
+char *format(char *fmt, ...);
+
+
+
 //
 // tokenize.c
 //
@@ -23,6 +32,7 @@ typedef enum
     TK_PUNCT,   // Punctuators
     TK_IDENT,   // Identifiers
     TK_KEYWORD, // Keywords
+    TK_STR,     // String literals
     TK_NUM,
     TK_EOF
 } TokenKind;
@@ -33,9 +43,11 @@ struct Token
 {
     TokenKind kind;
     Token *next;
-    int val; // used if kind is TK_NUM
+    int val;        // used if kind is TK_NUM
     char *loc;
     int len;
+    Type *ty;       // used if TK_STR
+    char *str;      // string literal contents
 };
 
 void error(char *fmt, ...);
@@ -63,6 +75,9 @@ struct Obj
     int offset;
 
     bool is_function;
+
+    // global variable
+    char *init_data;
 
     // function
     Obj *params;
