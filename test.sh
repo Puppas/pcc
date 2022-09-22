@@ -3,7 +3,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./build/pcc "$input" > ./build/tmp.s || exit
+  echo "$input" | ./build/pcc - > ./build/tmp.s || exit
   gcc -static -o ./build/tmp ./build/tmp.s
   ./build/tmp
   actual="$?"
