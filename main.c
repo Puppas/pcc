@@ -15,6 +15,7 @@ static void paese_args(int argc, char **argv) {
             usage(0);
         }
 
+        // parse -o filename 
         if (!strcmp(argv[i], "-o")) {
             if(!argv[++i])
                 usage(1);
@@ -22,6 +23,7 @@ static void paese_args(int argc, char **argv) {
             continue;
         }
 
+        // parse -ofilename 
         if(!strncmp(argv[i], "-o", 2)) {
             opt_o = argv[i] + 2;
             continue;

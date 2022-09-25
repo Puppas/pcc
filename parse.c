@@ -1,3 +1,12 @@
+// This file contains a recursive descent parser for C.
+//
+// Most functions in this file are named after the symbols they are
+// supposed to read from an input token list. For example, stmt() is
+// responsible for reading a statement from a token list. The function
+// then construct an AST node representing a statement.
+
+
+
 #include "pcc.h"
 
 // All local variable instances created during parsing are
