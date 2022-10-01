@@ -18,7 +18,7 @@ void error(char *fmt, ...)
 // reports a error message like this:
 // foo.c:10: x = y + 1;
 //               ^ error message 
-static void verror_at(char *loc, char *fmt, va_list ap)
+static void verror_at(int line_no, char *loc, char *fmt, va_list ap)
 {
     char *line_start = loc; // find the begin of line containing 'loc'
     while (current_input < line_start && line_start[-1] != '\n') {
@@ -28,13 +28,6 @@ static void verror_at(char *loc, char *fmt, va_list ap)
     char *line_end = loc;   // find the end of line containing 'loc'
     while (*line_end != '\n') {
         ++line_end;
-    }
-
-    // get the line number
-    int line_no = 1;
-    for (char *p = current_input; p < line_start; ++p) {
-        if (*p == '\n')
-            ++line_no;
     }
 
     int indent = fprintf(stderr, "%s:%d: ", current_filename, line_no);
@@ -51,16 +44,22 @@ static void verror_at(char *loc, char *fmt, va_list ap)
 
 void error_at(char *loc, char *fmt, ...)
 {
+    int line_no = 1;
+    for (char *p = current_input; p < loc; ++p)
+        if ((*p == '\n')){
+            ++line_no;
+        }
+        
     va_list ap;
     va_start(ap, fmt);
-    verror_at(loc, fmt, ap);
+    verror_at(line_no, loc, fmt, ap);
 }
 
 
 void error_tok(Token *tok, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  verror_at(tok->loc, fmt, ap);
+  verror_at(tok->line_no, tok->loc, fmt, ap);
 }
 
 
@@ -240,6 +239,22 @@ static void convert_keywords(Token *tok) {
 }
 
 
+static void add_line_numbers(Token *tok) {
+    char *p = current_input;
+    int n = 1;
+    do {
+        if(p == tok->loc) {
+            tok->line_no = n;
+            tok = tok->next;
+        }
+        if (*p == '\n')
+            ++n;
+
+    }while(*p++);
+}
+
+
+
 static Token *tokenize(char *filename, char *p)
 {
     current_filename = filename;
@@ -310,6 +325,7 @@ static Token *tokenize(char *filename, char *p)
     }
 
     cur = cur->next = new_token(TK_EOF, p, p);
+    add_line_numbers(head.next);
     convert_keywords(head.next);
     return head.next;
 }

@@ -49,6 +49,7 @@ struct Token
     int len;
     Type *ty;       // used if TK_STR
     char *str;      // string literal contents
+    int line_no;    // line number
 };
 
 void error(char *fmt, ...);
