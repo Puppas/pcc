@@ -59,6 +59,8 @@ int main(int argc, char **argv)
     Obj *prog = parse(tok);
 
     FILE *out = open_file(opt_o);
+    // .file file_number file_name
+    fprintf(out, ".file 1 \"%s\"\n", input_path);
     codegen(prog, out);
     return 0;
 }
