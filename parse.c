@@ -19,6 +19,7 @@ typedef struct VarScope
 };
 
 
+// scope for struct or union tags
 typedef struct TagScope TagScope;
 struct TagScope
 {
@@ -54,6 +55,7 @@ static Scope *scope = &(Scope){};
 
 static Type *declspec(Token **rest, Token *tok);
 static Type *struct_decl(Token **rest, Token *tok);
+static Type *union_decl(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Node *declaration(Token **rest, Token *tok);
 static Node *compound_stmt(Token **rest, Token *tok);
@@ -227,7 +229,7 @@ static void push_tag_scope(Token *tok, Type *ty)
 }
 
 
-// declspec -> "int" | "char" | struct-decl
+// declspec -> "int" | "char" | struct-decl | union-decl
 static Type *declspec(Token **rest, Token *tok)
 {
   if (equal(tok, "char"))
@@ -243,6 +245,10 @@ static Type *declspec(Token **rest, Token *tok)
 
   if(equal(tok, "struct")) {
     return struct_decl(rest, tok->next);
+  }
+
+  if (equal(tok, "union")) {
+    return union_decl(rest, tok->next);
   }
 
   error_tok(tok, "typename expected");
@@ -332,9 +338,9 @@ static void struct_members(Token **rest, Token *tok, Type *ty) {
   ty->members = head.next;
 }
 
-// struct-decl -> ident? "{" struct-members
-static Type *struct_decl(Token **rest, Token *tok) {
-  // read a struct tag
+// struct-union-decl -> ident? ("{" struct-members)?
+static Type *struct_union_decl(Token **rest, Token *tok) {
+  // read a tag
   Token *tag = NULL;
   if (tok->kind == TK_IDENT) {
     tag = tok;
@@ -344,32 +350,55 @@ static Type *struct_decl(Token **rest, Token *tok) {
   if (tag && !equal(tok, "{")) {
     Type *ty = find_tag(tag);
     if (!ty)
-      error_tok(tag, "unknown struct type");
+      error_tok(tag, "unknown struct or union type");
     *rest = tok;
     return ty;    
   }
 
   Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_STRUCT;
   struct_members(rest, tok->next, ty);
   ty->align = 1;
+  
+  // register the type if a name is given
+  if (tag) {
+    push_tag_scope(tag, ty);
+  }
+  return ty;
+}
 
-  // assign offsets to members
+// struct-decl -> struct-union-decl
+static Type *struct_decl(Token **rest, Token *tok) {
+  Type *ty = struct_union_decl(rest, tok);
+  ty->kind = TY_STRUCT;
+
+  // assign offsets within the struct to members.
   int offset = 0;
   for (Member *mem = ty->members; mem; mem = mem->next) {
     offset = align_to(offset, mem->ty->align);
     mem->offset = offset;
     offset += mem->ty->size;
 
-    if (ty->align < mem->ty->align) {
+    if (ty->align < mem->ty->align)
       ty->align = mem->ty->align;
-    }
   }
   ty->size = align_to(offset, ty->align);
-  
-  if (tag) {
-    push_tag_scope(tag, ty);
+  return ty;
+}
+
+// union-decl -> struct-union-decl
+static Type *union_decl(Token **rest, Token *tok) {
+  Type *ty = struct_union_decl(rest, tok);
+  ty->kind = TY_UNION;
+
+  // we don't need to compute offsets of members in union 
+  for (Member *mem = ty->members; mem; mem = mem->next) {
+    if (ty->align < mem->ty->align)
+      ty->align = mem->ty->align;
+    if (ty->size < mem->ty->size)
+      ty->size = mem->ty->size;
   }
+
+  ty->size = align_to(ty->size, ty->align);
   return ty;
 }
 
@@ -384,8 +413,8 @@ static Member *get_struct_member(Type *ty, Token *tok) {
 
 static Node *struct_ref(Node *lhs, Token *tok) {
   add_type(lhs);
-  if (lhs->ty->kind != TY_STRUCT)
-    error_tok(lhs->tok, "not a struct");
+  if (lhs->ty->kind != TY_STRUCT && lhs->ty->kind != TY_UNION)
+    error_tok(lhs->tok, "not a struct or union");
 
   Node *node = new_unary(ND_MEMBER, lhs, tok);
   node->member = get_struct_member(lhs->ty, tok);
@@ -429,9 +458,11 @@ static Node *declaration(Token **rest, Token *tok)
   return node;
 }
 
+// decides whether tok represents a type
 static bool is_typename(Token *tok)
 {
-  return equal(tok, "char") || equal(tok, "int") || equal(tok, "struct");
+  return equal(tok, "char") || equal(tok, "int") || equal(tok, "struct") ||
+         equal(tok, "union");
 }
 
 // stmt = "return" expr ";"

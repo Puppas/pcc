@@ -158,7 +158,8 @@ typedef enum
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
-    TY_STRUCT
+    TY_STRUCT,
+    TY_UNION
 } TypeKind;
 
 struct Type

@@ -257,4 +257,11 @@ assert 3 'int main() { struct t {int x;}; int t=1; struct t y; y.x=2; return t+y
 assert 3 'int main() { struct t {char a;} x; struct t *y = &x; x.a=3; return y->a; }'
 assert 3 'int main() { struct t {char a;} x; struct t *y = &x; y->a=3; return x.a; }'
 
+assert 8 'int main() { union { int a; char b[6]; } x; return sizeof(x); }'
+assert 3 'int main() { union { int a; char b[4]; } x; x.a = 515; return x.b[0]; }'
+assert 2 'int main() { union { int a; char b[4]; } x; x.a = 515; return x.b[1]; }'
+assert 0 'int main() { union { int a; char b[4]; } x; x.a = 515; return x.b[2]; }'
+assert 0 'int main() { union { int a; char b[4]; } x; x.a = 515; return x.b[3]; }'
+
+
 echo OK
