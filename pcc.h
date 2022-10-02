@@ -14,7 +14,7 @@
 
 typedef struct Type Type;
 typedef struct Node Node;
-
+typedef struct Member Member;
 
 //
 // strings.c
@@ -102,6 +102,7 @@ typedef enum
     ND_LE,     // <=
     ND_ASSIGN, // =
     ND_COMMA,  // ,
+    ND_MEMBER, // . (struct member access)
     ND_ADDR,   // unary &
     ND_DEREF,  // unary *
     ND_RETURN, // return
@@ -134,6 +135,9 @@ struct Node
     // block or statement expression
     Node *body;
 
+    // struct member access
+    Member *member;
+
     // function name
     char *funcname;
     Node *args;
@@ -153,13 +157,15 @@ typedef enum
     TY_INT,
     TY_PTR,
     TY_FUNC,
-    TY_ARRAY
+    TY_ARRAY,
+    TY_STRUCT
 } TypeKind;
 
 struct Type
 {
     TypeKind kind;
     int size; // returned by sizeof()
+    int align;
 
     // pointer or array
     Type *base;
@@ -169,11 +175,25 @@ struct Type
 
     int array_len;
 
+    // struct
+    Member *members;
+
     // function type
     Type *return_ty;
     Type *params;
     Type *next;
 };
+
+
+struct Member
+{
+    Member *next;
+    Type *ty;
+    Token *name;
+    int offset;
+};
+
+
 
 
 extern Type *ty_char;
@@ -186,10 +206,12 @@ Type *func_type(Type *return_ty);
 Type *array_of(Type *base, int size);
 void add_type(Node *node);
 
+
 //
 // codegen.c
 //
 
 void codegen(Obj *prog, FILE *out);
+int align_to(int n, int align);
 
 #endif /* PCC_H */

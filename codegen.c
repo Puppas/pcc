@@ -39,7 +39,7 @@ static void pop(char *arg)
 }
 
 // round up n to the nearest multiple of 'align'
-static int align_to(int n, int align)
+int align_to(int n, int align)
 {
     return (n + align - 1) / align * align;
 }
@@ -66,6 +66,10 @@ static void gen_addr(Node *node)
     case ND_COMMA:
         gen_expr(node->lhs);
         gen_addr(node->rhs);
+        return;
+    case ND_MEMBER:
+        gen_addr(node->lhs);
+        println("  add $%d, %%rax", node->member->offset);
         return;
     }
 
@@ -117,6 +121,7 @@ static void gen_expr(Node *node)
         println("  neg %%rax");
         return;
     case ND_VAR:
+    case ND_MEMBER:
         gen_addr(node);
         load(node->ty);
         return;
