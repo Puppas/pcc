@@ -19,11 +19,25 @@ typedef struct VarScope
 };
 
 
+typedef struct TagScope TagScope;
+struct TagScope
+{
+  TagScope *next;
+  char *name;
+  Type *ty;
+};
+
+
+
+// represents a block scope
 typedef struct Scope Scope;
 struct Scope
 {
   Scope *next;
+
+  // C has two block scopes: one is for variables and the other is for struct tags
   VarScope *vars;
+  TagScope *tags;
 };
 
 
@@ -31,6 +45,8 @@ struct Scope
 // All local variable instances created during parsing are
 // accumulated to this list.
 static Obj *locals;
+
+// global variables are stored in during parsing
 static Obj *globals;
 
 static Scope *scope = &(Scope){};
@@ -74,6 +90,19 @@ static Obj *find_var(Token *tok)
         return sc2->var;
     }
   }
+  return NULL;
+}
+
+
+static Type *find_tag(Token *tok) {
+  for (Scope *sc = scope; sc; sc = sc->next) {
+    for (TagScope *sc2 = sc->tags; sc2; sc2 = sc2->next) {
+      if (equal(tok, sc2->name)) {
+        return sc2->ty;
+      }
+    }
+  }
+  
   return NULL;
 }
 
@@ -188,6 +217,16 @@ static int get_number(Token *tok)
   return tok->val;
 }
 
+static void push_tag_scope(Token *tok, Type *ty) 
+{
+  TagScope *sc = calloc(1, sizeof(TagScope));
+  sc->name = strndup(tok->loc, tok->len);
+  sc->ty = ty;
+  sc->next = scope->tags;
+  scope->tags = sc;
+}
+
+
 // declspec -> "int" | "char" | struct-decl
 static Type *declspec(Token **rest, Token *tok)
 {
@@ -293,13 +332,26 @@ static void struct_members(Token **rest, Token *tok, Type *ty) {
   ty->members = head.next;
 }
 
-// struct-decl -> "{" struct-members
+// struct-decl -> ident? "{" struct-members
 static Type *struct_decl(Token **rest, Token *tok) {
-  tok = skip(tok, "{");
+  // read a struct tag
+  Token *tag = NULL;
+  if (tok->kind == TK_IDENT) {
+    tag = tok;
+    tok = tok->next;
+  }
+  
+  if (tag && !equal(tok, "{")) {
+    Type *ty = find_tag(tag);
+    if (!ty)
+      error_tok(tag, "unknown struct type");
+    *rest = tok;
+    return ty;    
+  }
 
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_STRUCT;
-  struct_members(rest, tok, ty);
+  struct_members(rest, tok->next, ty);
   ty->align = 1;
 
   // assign offsets to members
@@ -313,8 +365,11 @@ static Type *struct_decl(Token **rest, Token *tok) {
       ty->align = mem->ty->align;
     }
   }
-
   ty->size = align_to(offset, ty->align);
+  
+  if (tag) {
+    push_tag_scope(tag, ty);
+  }
   return ty;
 }
 
