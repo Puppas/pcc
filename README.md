@@ -1,1 +1,1 @@
-pcc: a samll c compiler
+pcc: a small c compiler
