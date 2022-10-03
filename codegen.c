@@ -4,6 +4,7 @@
 static FILE *output_file;
 static int depth;
 static char *argreg8[] = {"%dil", "%sil", "%dl", "cl", "%r8b", "%r9b"};
+static char *argreg32[] = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
 static char *argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 static Obj *current_fn;
 
@@ -80,16 +81,15 @@ static void gen_addr(Node *node)
 static void load(Type *ty)
 {
     if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT || ty->kind == TY_UNION)
-    {
         return;
-    }
 
-    if (ty->size == 1)
-    {
+    if (ty->size == 1) {
         println("  movsbq (%%rax), %%rax");
     }
-    else
-    {
+    else if(ty->size == 4) {
+        println("  movsxd (%%rax), %%rax");
+    }
+    else {
         println("  mov (%%rax), %%rax");
     }
 }
@@ -109,6 +109,8 @@ static void store(Type *ty)
 
     if (ty->size == 1)
         println("  mov %%al, (%%rdi)");
+    else if(ty->size == 4)
+        println("  mov %%eax, (%%rdi)");
     else
         println("  mov %%rax, (%%rdi)");
 }
@@ -325,6 +327,24 @@ static void emit_data(Obj *prog)
     }
 }
 
+static void store_gp(int r, int offset, int sz) {
+    switch (sz)
+    {
+    case 1:
+        println("  mov %s, %d(%%rbp)", argreg8[r], offset);
+        return;
+    case 4:
+        println("  mov %s, %d(%%rbp)", argreg32[r], offset); 
+        return;
+    case 8:
+        println("  mov %s, %d(%%rbp)", argreg64[r], offset);
+        return;
+    }
+
+    unreachable();
+}
+
+
 static void emit_text(Obj *prog)
 {
     for (Obj *fn = prog; fn; fn = fn->next)
@@ -343,13 +363,11 @@ static void emit_text(Obj *prog)
         println("  mov %%rsp, %%rbp");
         println("  sub $%d, %%rsp", fn->stack_size);
 
+        // save arguments to stack
         int i = 0;
         for (Obj *var = fn->params; var; var = var->next)
         {
-            if (var->ty->size == 1)
-                println("  mov %s, %d(%%rbp)", argreg8[i++], var->offset);
-            else
-                println("  mov %s, %d(%%rbp)", argreg64[i++], var->offset);
+            store_gp(i++, var->offset, var->ty->size);
         }
 
         gen_stmt(fn->body);
