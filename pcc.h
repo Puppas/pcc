@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,7 +45,7 @@ struct Token
 {
     TokenKind kind;
     Token *next;
-    int val;        // used if kind is TK_NUM
+    int64_t val;        // used if kind is TK_NUM
     char *loc;
     int len;
     Type *ty;       // used if TK_STR
@@ -146,7 +147,7 @@ struct Node
     Node *args;
 
     Obj *var; // used if kind == ND_VAR
-    int val;  // used if kind == ND_NUM
+    int64_t val;  // used if kind == ND_NUM
 };
 
 Obj *parse(Token *tok);
@@ -157,7 +158,9 @@ Obj *parse(Token *tok);
 typedef enum
 {
     TY_CHAR,
+    TY_SHORT,
     TY_INT,
+    TY_LONG,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -202,6 +205,8 @@ struct Member
 
 extern Type *ty_char;
 extern Type *ty_int;
+extern Type *ty_long;
+extern Type *ty_short;
 
 bool is_integer(Type *ty);
 Type *copy_type(Type *ty);

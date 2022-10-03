@@ -95,6 +95,7 @@ assert 1 'int main() { return sub2(4,3); } int sub2(int x, int y) { return x-y; 
 assert 55 'int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }'
 assert 8 'int mul(int x, int y) { return x * y; } int main() { return mul(3 - 1, 4); }'
 
+
 assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
 
 assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
@@ -157,7 +158,8 @@ assert 2 'int main() { char x=1; char y=2; return y; }'
 assert 1 'int main() { char x; return sizeof(x); }'
 assert 10 'int main() { char x[10]; return sizeof(x); }'
 assert 1 'int main() { return sub_char(7, 3, 3); } int sub_char(char a, char b, char c) { return a-b-c; }'
-
+assert 1 'int sub_long(long a, long b, long c) { return a - b - c; } int main() { return sub_long(7, 3, 3); }'
+assert 1 'int sub_short(short a, short b, short c) { return a - b - c; } int main() { return sub_short(7, 3, 3); }'
 
 assert 0 'int main() { return ""[0]; }'
 assert 1 'int main() { return sizeof(""); }'
@@ -247,7 +249,8 @@ assert 0 'int main() { struct {} x; return sizeof(x); }'
 
 assert 7 'int main() { int x; int y; char z; char *a=&y; char *b=&z; return b-a; }'
 assert 1 'int main() { int x; char y; int z; char *a=&y; char *b=&z; return b-a; }'
-
+assert 8 'int main() { long x; return sizeof(x); }'
+assert 2 'int main() { short x; return sizeof(x); }'
 
 assert 8 'int main() { struct t {int a; int b;} x; struct t y; return sizeof(y); }'
 assert 8 'int main() { struct t {int a; int b;}; struct t y; return sizeof(y); }'
@@ -269,6 +272,8 @@ assert 5 'int main() { struct t {char a, b;} x, y; x.a=5; y=x; return y.a; }'
 
 assert 8 'int main() { struct t {int a; int b;} x; struct t y; return sizeof(y); }'
 assert 8 'int main() { struct t {int a; int b;}; struct t y; return sizeof(y); }'
+assert 16 'int main() { struct {char a; long b;} x; return sizeof(x); }'
+assert 4 'int main() { struct {char a; short b;} x; return sizeof(x); }'
 
 assert 8 'int main() { union { int a; char b[6]; } x; return sizeof(x); }'
 assert 3 'int main() { union { int a; char b[4]; } x; x.a = 515; return x.b[0]; }'
