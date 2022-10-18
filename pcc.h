@@ -81,6 +81,7 @@ struct Obj
     int offset;
 
     bool is_function;
+    bool is_definition;
 
     // global variable
     char *init_data;
