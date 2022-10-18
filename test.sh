@@ -259,6 +259,7 @@ assert 12 'int main() { char (x[3])[4]; return sizeof(x); }'
 assert 4 'int main() { char (x[3])[4]; return sizeof(x[0]); }'
 assert 3 'int main() { char *x[3]; char y; x[0]=&y; y=3; return x[0][0]; }'
 assert 4 'int main() { char x[3]; char (*y)[3]=x; y[0][0]=4; return y[0][0]; }'
+assert 0 'int main() { void *x; return 0; }'
 
 assert 8 'int main() { struct t {int a; int b;} x; struct t y; return sizeof(y); }'
 assert 8 'int main() { struct t {int a; int b;}; struct t y; return sizeof(y); }'
