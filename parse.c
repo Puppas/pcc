@@ -53,6 +53,7 @@ static Obj *globals;
 static Scope *scope = &(Scope){};
 
 
+static bool is_typename(Token *tok);
 static Type *declspec(Token **rest, Token *tok);
 static Type *struct_decl(Token **rest, Token *tok);
 static Type *union_decl(Token **rest, Token *tok);
@@ -229,47 +230,80 @@ static void push_tag_scope(Token *tok, Type *ty)
 }
 
 
-// declspec -> "void" | "char" | "short" | "int" | "long" | 
-//             struct-decl | union-decl
+// declspec = ("void" | "char" | "short" | "int" | "long"
+//             | struct-decl | union-decl)+
+//
+// Notice that the order of typenames in a type-specifier doesn't matter.
 static Type *declspec(Token **rest, Token *tok)
 {
-  if (equal(tok, "void"))
-  {
-    *rest = tok->next;
-    return ty_void;
-  }
-  
+  enum {
+    VOID = 1 << 0,
+    CHAR = 1 << 2,
+    SHORT = 1 << 4,
+    INT = 1 << 6,
+    LONG = 1 << 8,
+    OTHER = 1 << 10
+  };
 
-  if (equal(tok, "char"))
-  {
-    *rest = tok->next;
-    return ty_char;
+  Type *ty = ty_int;
+  // we keep the current type counter for mapping to current type
+  int counter = 0;
+
+  while (is_typename(tok)) {
+    // handle user-defined type
+    if (equal(tok, "struct") || equal(tok, "union")) {
+      if (equal(tok, "struct"))
+        ty = struct_decl(&tok, tok->next);
+      else
+        ty = union_decl(&tok, tok->next);
+      
+      counter += OTHER;
+      continue;
+    }
+
+    // handle built-in type
+    if (equal(tok, "void"))
+      counter += VOID;
+    else if(equal(tok, "char"))
+      counter += CHAR;
+    else if(equal(tok, "short"))
+      counter += SHORT;
+    else if(equal(tok, "int"))
+      counter += INT;
+    else if(equal(tok, "long"))
+      counter += LONG;
+    else 
+      unreachable();
+
+    switch (counter)
+    {
+    case VOID:
+      ty = ty_void;
+      break;
+    case CHAR:
+      ty = ty_char;
+      break;
+    case SHORT:
+    case SHORT + INT:
+      ty = ty_short;
+      break;
+    case INT:
+      ty = ty_int;
+      break;
+    case LONG:
+    case LONG + LONG:
+    case LONG + INT:
+      ty = ty_long;
+      break;
+    default:
+      error_tok(tok, "invalid type");
+    }
+
+    tok = tok->next;
   }
 
-  if (equal(tok, "short")) {
-    *rest = tok->next;
-    return ty_short;
-  }
-
-  if (equal(tok, "int")) {
-    *rest = tok->next;
-    return ty_int;
-  }
-
-  if (equal(tok, "long")) {
-    *rest = tok->next;
-    return ty_long;
-  }
-
-  if(equal(tok, "struct")) {
-    return struct_decl(rest, tok->next);
-  }
-
-  if (equal(tok, "union")) {
-    return union_decl(rest, tok->next);
-  }
-
-  error_tok(tok, "typename expected");
+  *rest = tok;
+  return ty;
 }
 
 // func-params = (param ("," param)*)? ")"

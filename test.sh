@@ -294,4 +294,12 @@ assert 3 'int main() { union {int a,b;} x,y; x.a=3; y.a=5; y=x; return y.a; }'
 assert 3 'int main() { union {struct {int a,b;} c;} x,y; x.c.b=3; y.c.b=5; y=x; return y.c.b; }'
 
 
+assert 1 'int main() { char x; return sizeof(x); }'
+assert 2 'int main() { short int x; return sizeof(x); }'
+assert 2 'int main() { int short x; return sizeof(x); }'
+assert 4 'int main() { int x; return sizeof(x); }'
+assert 8 'int main() { long int x; return sizeof(x); }'
+assert 8 'int main() { int long x; return sizeof(x); }'
+assert 8 'int main() { long long x; return sizeof(x); }'
+
 echo OK
