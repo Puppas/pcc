@@ -46,7 +46,7 @@ void error_at(char *loc, char *fmt, ...)
 {
     int line_no = 1;
     for (char *p = current_input; p < loc; ++p)
-        if ((*p == '\n')){
+        if (*p == '\n'){
             ++line_no;
         }
         
@@ -137,7 +137,7 @@ static bool is_keyword(Token *tok) {
     static char *kw[] = {
         "return", "if", "else", "for", "while", "int",
         "sizeof", "char", "struct", "union", "short",
-        "long", "void"};
+        "long", "void", "typedef"};
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
         if (equal(tok, kw[i]))
             return true;

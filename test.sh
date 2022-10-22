@@ -302,4 +302,13 @@ assert 8 'int main() { long int x; return sizeof(x); }'
 assert 8 'int main() { int long x; return sizeof(x); }'
 assert 8 'int main() { long long x; return sizeof(x); }'
 
+
+assert 1 'int main() { typedef int t; t x=1; return x; }'
+assert 1 'int main() { typedef struct {int a;} t; t x; x.a=1; return x.a; }'
+assert 1 'int main() { typedef int t; t t=1; return t; }'
+assert 2 'int main() { typedef struct {int a;} t; { typedef int t; } t x; x.a=2; return x.a; }'
+assert 4 'int main() { typedef t; t x; return sizeof(x); }'
+assert 3 'typedef int MyInt; int main() { MyInt x=3; return x; }'
+assert 16 'typedef int MyInt2[4]; int main() { MyInt2 x; return sizeof(x); }'
+
 echo OK
