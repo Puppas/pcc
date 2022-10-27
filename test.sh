@@ -311,4 +311,23 @@ assert 4 'int main() { typedef t; t x; return sizeof(x); }'
 assert 3 'typedef int MyInt; int main() { MyInt x=3; return x; }'
 assert 16 'typedef int MyInt2[4]; int main() { MyInt2 x; return sizeof(x); }'
 
+
+assert 1 'int main() { return sizeof(char); }'
+assert 2 'int main() { return sizeof(short); }'
+assert 2 'int main() { return sizeof(short int); }'
+assert 2 'int main() { return sizeof(int short); }'
+assert 4 'int main() { return sizeof(int); }'
+assert 8 'int main() { return sizeof(long); }'
+assert 8 'int main() { return sizeof(long int); }'
+assert 8 'int main() { return sizeof(long int); }'
+assert 8 'int main() { return sizeof(char *); }'
+assert 8 'int main() { return sizeof(int *); }'
+assert 8 'int main() { return sizeof(long *); }'
+assert 8 'int main() { return sizeof(int **); }'
+assert 8 'int main() { return sizeof(int(*)[4]); }'
+assert 32 'int main() { return sizeof(int*[4]); }'
+assert 16 'int main() { return sizeof(int[4]); }'
+assert 48 'int main() { return sizeof(int[3][4]); }'
+assert 8 'int main() { return sizeof(struct {int a; int b;}); }'
+
 echo OK
