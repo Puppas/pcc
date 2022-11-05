@@ -416,16 +416,17 @@ static Type *declarator(Token **rest, Token *tok, Type *ty)
   return ty;
 }
 
-
 // abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
-static Type *abstract_declarator(Token **rest, Token *tok, Type *ty) 
+static Type *abstract_declarator(Token **rest, Token *tok, Type *ty)
 {
-  while (equal(tok, "*")) {
+  while (equal(tok, "*"))
+  {
     ty = pointer_to(ty);
     tok = tok->next;
   }
-  
-  if(equal(tok, "(")) {
+
+  if (equal(tok, "("))
+  {
     Token *start = tok;
     Type dummy = {};
     abstract_declarator(&tok, start->next, &dummy);
@@ -437,14 +438,12 @@ static Type *abstract_declarator(Token **rest, Token *tok, Type *ty)
   return type_suffix(rest, tok, ty);
 }
 
-
 // type-name = declspec abstract-declarator
-static Type *typename(Token **rest, Token *tok) {
+static Type *typename(Token **rest, Token *tok)
+{
   Type *ty = declspec(&tok, tok, NULL);
   return abstract_declarator(rest, tok, ty);
 }
-
-
 
 // struct-members = (declspec declarator (","  declarator)* ";")*
 static void struct_members(Token **rest, Token *tok, Type *ty)
@@ -610,8 +609,7 @@ static bool is_typename(Token *tok)
 {
   static char *kw[] = {
       "void", "char", "short", "int", "long", "struct", "union",
-      "typedef"
-  };
+      "typedef"};
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
     if (equal(tok, kw[i]))
@@ -694,16 +692,19 @@ static Node *compound_stmt(Token **rest, Token *tok)
 
   while (!equal(tok, "}"))
   {
-    if (is_typename(tok)) {
+    if (is_typename(tok))
+    {
       VarAttr attr = {};
       Type *basety = declspec(&tok, tok, &attr);
-      if (attr.is_typedef) {
+      if (attr.is_typedef)
+      {
         tok = parse_typedef(tok, basety);
         continue;
       }
       cur = cur->next = declaration(&tok, tok, basety);
     }
-    else {
+    else
+    {
       cur = cur->next = stmt(&tok, tok);
     }
     add_type(cur);
@@ -1035,7 +1036,8 @@ static Node *primary(Token **rest, Token *tok)
     return node;
   }
 
-  if (equal(tok, "sizeof") && equal(tok->next, "(") && is_typename(tok->next->next)) {
+  if (equal(tok, "sizeof") && equal(tok->next, "(") && is_typename(tok->next->next))
+  {
     Type *ty = typename(&tok, tok->next->next);
     *rest = skip(tok, ")");
     return new_num(ty->size, start);
@@ -1082,25 +1084,24 @@ static Node *primary(Token **rest, Token *tok)
   error_tok(tok, "expected an expression");
 }
 
-
-static Token *parse_typedef(Token *tok, Type *basety) 
+static Token *parse_typedef(Token *tok, Type *basety)
 {
   bool first = true;
-  
-  while (!consume(&tok, tok, ";")) {
-    if (!first) {
+
+  while (!consume(&tok, tok, ";"))
+  {
+    if (!first)
+    {
       tok = skip(tok, ",");
     }
-    
+
     first = false;
     Type *ty = declarator(&tok, tok, basety);
     push_scope(get_indent(ty->name))->type_def = ty;
   }
-  
+
   return tok;
 }
-
-
 
 static void create_param_lvars(Type *param)
 {
@@ -1175,13 +1176,15 @@ Obj *parse(Token *tok)
     Type *basety = declspec(&tok, tok, &attr);
 
     // typedef
-    if (attr.is_typedef) {
+    if (attr.is_typedef)
+    {
       tok = parse_typedef(tok, basety);
       continue;
     }
 
     // function
-    if (is_function(tok)) {
+    if (is_function(tok))
+    {
       tok = function(tok, basety);
       continue;
     }
