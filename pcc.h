@@ -23,8 +23,6 @@ typedef struct Member Member;
 
 char *format(char *fmt, ...);
 
-
-
 //
 // tokenize.c
 //
@@ -45,12 +43,12 @@ struct Token
 {
     TokenKind kind;
     Token *next;
-    int64_t val;        // used if kind is TK_NUM
+    int64_t val; // used if kind is TK_NUM
     char *loc;
     int len;
-    Type *ty;       // used if TK_STR
-    char *str;      // string literal contents
-    int line_no;    // line number
+    Type *ty;    // used if TK_STR
+    char *str;   // string literal contents
+    int line_no; // line number
 };
 
 void error(char *fmt, ...);
@@ -73,10 +71,10 @@ typedef struct Obj Obj;
 struct Obj
 {
     Obj *next;
-    char *name; 
+    char *name;
     Type *ty;
     bool is_local; // local or global
-    
+
     // local variable
     int offset;
 
@@ -92,7 +90,6 @@ struct Obj
     Obj *locals;
     int stack_size;
 };
-
 
 typedef enum
 {
@@ -118,7 +115,8 @@ typedef enum
     ND_EXPR_STMT, // expression statement
     ND_STMT_EXPR, // statement expression
     ND_VAR,       // variable
-    ND_NUM
+    ND_NUM,
+    ND_CAST // type cast
 } NodeKind;
 
 struct Node
@@ -147,10 +145,12 @@ struct Node
     char *funcname;
     Node *args;
 
-    Obj *var; // used if kind == ND_VAR
-    int64_t val;  // used if kind == ND_NUM
+    Obj *var;    // used if kind == ND_VAR
+    int64_t val; // used if kind == ND_NUM
 };
 
+
+Node *new_cast(Node *expr, Type *ty);
 Obj *parse(Token *tok);
 
 //
@@ -193,7 +193,6 @@ struct Type
     Type *next;
 };
 
-
 struct Member
 {
     Member *next;
@@ -201,8 +200,6 @@ struct Member
     Token *name;
     int offset;
 };
-
-
 
 extern Type *ty_void;
 extern Type *ty_char;
@@ -216,7 +213,6 @@ Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
 Type *array_of(Type *base, int size);
 void add_type(Node *node);
-
 
 //
 // codegen.c

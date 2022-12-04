@@ -85,10 +85,10 @@ static void load(Type *ty)
         return;
 
     if (ty->size == 1) {
-        println("  movsbq (%%rax), %%rax");
+        println("  movsbl (%%rax), %%eax");
     }
     else if(ty->size == 2) {
-        println("  movswq (%%rax), %%rax");
+        println("  movswl (%%rax), %%eax");
     }
     else if(ty->size == 4) {
         println("  movsxd (%%rax), %%rax");
@@ -120,6 +120,56 @@ static void store(Type *ty)
     else
         println("  mov %%rax, (%%rdi)");
 }
+
+
+enum {I8, I16, I32, I64};
+
+
+static int get_type_id(Type *ty) 
+{
+    switch (ty->kind)
+    {
+    case TY_CHAR:
+        return I8;
+    case TY_SHORT:
+        return I16;
+    case TY_INT:
+        return I32;    
+    }
+
+    return I64;
+}
+
+
+static char i8_to_i16[] = "movsbw %al, %ax";
+static char i8_to_i32[] = "movsbl %al, %eax";
+static char i8_to_i64[] = "movsbq %al, %rax";
+
+static char i16_to_i32[] = "movswl %ax, %eax";
+static char i16_to_i64[] = "movswq %ax, %rax";
+
+static char i32_to_i64[] = "movslq %eax, %rax";
+
+
+static char *cast_table[][10] = {
+  {NULL,      i8_to_i16,  i8_to_i32,  i8_to_i64},  // i8
+  {i8_to_i32, NULL,       i16_to_i32, i16_to_i64}, // i16
+  {i8_to_i32, i16_to_i32, NULL,       i32_to_i64}, // i32
+  {i8_to_i32, i16_to_i32, i32_to_i64, NULL},       // i64
+};
+
+
+static void cast(Type *from, Type *to) 
+{
+    if(to->kind == TY_VOID)
+        return;
+    
+    int t1 = get_type_id(from);
+    int t2 = get_type_id(to);
+    if(cast_table[t1][t2])
+        println("  %s", cast_table[t1][t2]);
+}
+
 
 static void gen_expr(Node *node)
 {
@@ -161,6 +211,10 @@ static void gen_expr(Node *node)
     case ND_COMMA:
         gen_expr(node->lhs);
         gen_expr(node->rhs);
+        return;
+    case ND_CAST:
+        gen_expr(node->lhs);
+        cast(node->lhs->ty, node->ty);
         return;
     case ND_FUNCALL:
     {
