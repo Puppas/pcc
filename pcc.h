@@ -141,8 +141,9 @@ struct Node
     // struct member access
     Member *member;
 
-    // function name
+    // function call
     char *funcname;
+    Type *func_ty;
     Node *args;
 
     Obj *var;    // used if kind == ND_VAR
