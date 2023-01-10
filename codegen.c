@@ -84,6 +84,11 @@ static void load(Type *ty)
     if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT || ty->kind == TY_UNION)
         return;
 
+    // When we load a char or a short value to a register, we always
+    // extend them to the size of int, so we can assume the lower half of
+    // a register always contains a valid value. The upper half of a
+    // register for char, short and int may contain garbage. When we load
+    // a long value to a register, it simply occupies the entire register.
     if (ty->size == 1) {
         println("  movsbl (%%rax), %%eax");
     }
@@ -122,6 +127,16 @@ static void store(Type *ty)
 }
 
 
+static void cmp_zero(Type *ty)
+{
+    if (is_integer(ty) && ty->size <= 4) {
+        println("  cmp $0, %%eax");
+    }
+    else {
+        println("  cmp $0, %%rax");
+    }
+}
+
 enum {I8, I16, I32, I64};
 
 
@@ -141,29 +156,30 @@ static int get_type_id(Type *ty)
 }
 
 
-static char i8_to_i16[] = "movsbw %al, %ax";
 static char i8_to_i32[] = "movsbl %al, %eax";
-static char i8_to_i64[] = "movsbq %al, %rax";
-
 static char i16_to_i32[] = "movswl %ax, %eax";
-static char i16_to_i64[] = "movswq %ax, %rax";
-
 static char i32_to_i64[] = "movslq %eax, %rax";
 
-
 static char *cast_table[][10] = {
-  {NULL,      i8_to_i16,  i8_to_i32,  i8_to_i64},  // i8
-  {i8_to_i32, NULL,       i16_to_i32, i16_to_i64}, // i16
-  {i8_to_i32, i16_to_i32, NULL,       i32_to_i64}, // i32
-  {i8_to_i32, i16_to_i32, i32_to_i64, NULL},       // i64
+  {NULL,      NULL,       NULL,      i32_to_i64},  // i8
+  {i8_to_i32, NULL,       NULL,      i32_to_i64}, // i16
+  {i8_to_i32, i16_to_i32, NULL,      i32_to_i64}, // i32
+  {i8_to_i32, i16_to_i32, NULL,      NULL},       // i64
 };
 
 
 static void cast(Type *from, Type *to) 
 {
-    if(to->kind == TY_VOID)
+    if (to->kind == TY_VOID)
         return;
     
+    if (to->kind == TY_BOOL) {
+        cmp_zero(from);
+        println("  setne %%al");
+        println("  movzx %%al, %%eax");
+        return;
+    }
+
     int t1 = get_type_id(from);
     int t2 = get_type_id(to);
     if(cast_table[t1][t2])

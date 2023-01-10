@@ -138,7 +138,7 @@ static bool is_keyword(Token *tok) {
     static char *kw[] = {
         "return", "if", "else", "for", "while", "int",
         "sizeof", "char", "struct", "union", "short",
-        "long", "void", "typedef"};
+        "long", "void", "typedef", "_Bool"};
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
         if (equal(tok, kw[i]))
             return true;
@@ -164,7 +164,7 @@ static int read_escaped_char(char **new_pos, char *p) {
         // Read a hexadecimal number.
         p++;
         if (!isxdigit(*p))
-        error_at(p, "invalid hex escape sequence");
+            error_at(p, "invalid hex escape sequence");
 
         int c = 0;
         for (; isxdigit(*p); p++)
