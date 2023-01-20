@@ -446,7 +446,11 @@ static void emit_text(Obj *prog)
             continue;
         }
 
-        println("  .globl %s", fn->name);
+        if (fn->is_static)
+            println("  .local %s", fn->name);
+        else
+            println("  .globl %s", fn->name);
+
         println("  .text");
         println("%s:", fn->name);
         current_fn = fn;

@@ -33,6 +33,7 @@ struct TagScope
 typedef struct
 {
   bool is_typedef;
+  bool is_static;
 } VarAttr;
 
 // represents a block scope
@@ -272,7 +273,7 @@ static void push_tag_scope(Token *tok, Type *ty)
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
+//             | "typedef" | static
 //             | struct-decl | union-decl | typedef-name
 //             | enum_specifier)+
 //
@@ -296,12 +297,21 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
 
   while (is_typename(tok))
   {
-    // handle "typedef" keyword
-    if (equal(tok, "typedef"))
+    // handle storage class specifiers
+    if (equal(tok, "typedef") || equal(tok, "static"))
     {
       if (!attr)
         error_tok(tok, "storage class specifier is not allowed in this context");
-      attr->is_typedef = true;
+      
+      if (equal(tok, "typedef")) {
+        attr->is_typedef = true;
+      }
+      else {
+        attr->is_static = true;
+      }
+      if (attr->is_typedef + attr->is_static > 1)
+        error_tok(tok, "typedef and static may not be used together");
+      
       tok = tok->next;
       continue;
     }
@@ -710,7 +720,7 @@ static bool is_typename(Token *tok)
 {
   static char *kw[] = {
       "void", "_Bool", "char", "short", "int", "long", "struct",
-      "union", "typedef", "enum"};
+      "union", "typedef", "enum", "static"};
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
     if (equal(tok, kw[i]))
@@ -1270,13 +1280,15 @@ static void create_param_lvars(Type *param)
   }
 }
 
-static Token *function(Token *tok, Type *basety)
+static Token *function(Token *tok, Type *basety, VarAttr *attr)
 {
   Type *ty = declarator(&tok, tok, basety);
 
   Obj *fn = new_gvar(get_ident(ty->name), ty);
   fn->is_function = true;
   fn->is_definition = !consume(&tok, tok, ";");
+  fn->is_static = attr->is_static;
+
   if (!fn->is_definition)
     return tok;
 
@@ -1344,7 +1356,7 @@ Obj *parse(Token *tok)
     // function
     if (is_function(tok))
     {
-      tok = function(tok, basety);
+      tok = function(tok, basety, &attr);
       continue;
     }
 
