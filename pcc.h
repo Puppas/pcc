@@ -164,7 +164,8 @@ typedef enum
     TY_CHAR,
     TY_SHORT,
     TY_INT,
-    TY_LONG,
+    TY_LONG,    
+    TY_ENUM,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -216,6 +217,7 @@ Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
 Type *array_of(Type *base, int size);
+Type *enum_type();
 void add_type(Node *node);
 
 //
