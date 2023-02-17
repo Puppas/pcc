@@ -1112,8 +1112,9 @@ static Node *cast(Token **rest, Token *tok)
   return unary(rest, tok);
 }
 
-// unary -> ("+" | "-" | "&" | "*") cast
-//        | postfix
+// unary -> ("+" | "-" | "*" | "&") cast
+//       | ("++" | "--") unary
+//       | postfix
 static Node *unary(Token **rest, Token *tok)
 {
   if (equal(tok, "+"))
@@ -1128,10 +1129,30 @@ static Node *unary(Token **rest, Token *tok)
   if (equal(tok, "*"))
     return new_unary(ND_DEREF, cast(rest, tok->next), tok);
 
+
+  // treat ++i as i += 1
+  if (equal(tok, "++"))
+    return to_assign(new_add(unary(rest, tok->next), new_num(1, tok), tok));
+
+  // treat --i as i -= 1
+  if (equal(tok, "--"))
+    return to_assign(new_sub(unary(rest, tok->next), new_num(1, tok), tok));
+
   return postfix(rest, tok);
 }
 
-// postfix -> primary ("[" expr "]" | "." ident | "->" ident)*
+
+// Convert A++ to `(typeof A)((A += 1) - 1)`
+static Node *new_inc_dec(Node *node, Token *tok, int addend) {
+  add_type(node);
+  return new_cast(new_add(to_assign(new_add(node, new_num(addend, tok), tok)),
+                          new_num(-addend, tok), tok),
+                  node->ty);
+}
+
+
+
+// postfix -> primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 static Node *postfix(Token **rest, Token *tok)
 {
   Node *node = primary(&tok, tok);
@@ -1158,6 +1179,20 @@ static Node *postfix(Token **rest, Token *tok)
       node = new_unary(ND_DEREF, node, tok);
       node = struct_ref(node, tok->next);
       tok = tok->next->next;
+      continue;
+    }
+
+    if (equal(tok, "++"))
+    {
+      node = new_inc_dec(node, tok, 1);
+      tok = tok->next;
+      continue;
+    }
+
+    if (equal(tok, "--"))
+    {
+      node = new_inc_dec(node, tok, -1);
+      tok = tok->next;
       continue;
     }
 
