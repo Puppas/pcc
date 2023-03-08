@@ -4,7 +4,7 @@ int main() {
   ASSERT(0, 0);
   ASSERT(42, 42);
   ASSERT(21, 5+20-4);
-  ASSERT(41,  12 + 34 - 5);
+  ASSERT(41,  12 + 34 - 5 );
   ASSERT(47, 5+6*7);
   ASSERT(15, 5*(9-6));
   ASSERT(4, (3+5)/2);
@@ -78,6 +78,22 @@ int main() {
   ASSERT(5, ((long)17)%6);
   ASSERT(2, ({ int i=10; i%=4; i; }));
   ASSERT(2, ({ long i=10; i%=4; i; }));
+
+  ASSERT(0, 0&1);
+  ASSERT(1, 3&1);
+  ASSERT(3, 7&3);
+  ASSERT(10, -1&10);
+
+  ASSERT(1, 0|1);
+  ASSERT(0b10011, 0b10000|0b00011);
+
+  ASSERT(0, 0^0);
+  ASSERT(0, 0b1111^0b1111);
+  ASSERT(0b110100, 0b111000^0b001100);
+
+  ASSERT(2, ({ int i=6; i&=3; i; }));
+  ASSERT(7, ({ int i=6; i|=3; i; }));
+  ASSERT(10, ({ int i=15; i^=5; i; }));
 
   printf("OK\n");
   return 0;
