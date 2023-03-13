@@ -112,6 +112,8 @@ typedef enum
     ND_ADDR,   // unary &
     ND_DEREF,  // unary *
     ND_NOT,    // !
+    ND_LOGAND, // &&
+    ND_LOGOR,  // ||
     ND_BITNOT, // ~
     ND_BITAND, // & 
     ND_BITOR,  // | 
