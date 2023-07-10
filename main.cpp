@@ -7,6 +7,7 @@
 #include "ir_core/IRContext.hpp"
 #include "gen_ir.hpp"
 #include "passes/mem2reg.hpp"
+#include "passes/gvn.hpp"
 
 
 #define GEN_IR
@@ -74,6 +75,7 @@ int main(int argc, char **argv)
     IRContext context;
     Module *module = gen_ir(prog, context);
     mem2reg(module);
+    global_value_numbering(module);
     std::cout << *module << std::endl;
 
 #else
@@ -83,6 +85,5 @@ int main(int argc, char **argv)
     codegen(prog, out);
 
 #endif
-
     return 0;
 }
