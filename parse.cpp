@@ -5,7 +5,14 @@
 // responsible for reading a statement from a token list. The function
 // then construct an AST node representing a statement.
 
-#include "pcc.h"
+#include <assert.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parse.hpp"
+#include "tokenize.hpp"
+#include "type.hpp"
+#include "utils/util.hpp"
+
 
 // Scope for local variables, global varables, typedefs
 // or enum constants
@@ -54,8 +61,9 @@ static Obj *locals;
 
 // global variables are stored in during parsing
 static Obj *globals;
+static Obj *globals_end;
 
-static Scope *scope = &(Scope){};
+static Scope *scope = new Scope;
 
 // points to the function object the parser is currently parsing
 static Obj *current_fn;
@@ -73,9 +81,9 @@ static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *logor(Token **rest, Token *tok);
 static Node *logand(Token **rest, Token *tok);
-static Node *bitor(Token **rest, Token *tok);
-static Node *bitxor(Token **rest, Token *tok);
-static Node *bitand(Token **rest, Token *tok);
+static Node *bitor_(Token **rest, Token *tok);
+static Node *bitxor_(Token **rest, Token *tok);
+static Node *bitand_(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
@@ -90,7 +98,7 @@ static Token *parse_typedef(Token *tok, Type *basety);
 
 static void enter_scope()
 {
-  Scope *sc = calloc(1, sizeof(Scope));
+  Scope *sc = (Scope*)calloc(1, sizeof(Scope));
   sc->next = scope;
   scope = sc;
 }
@@ -132,7 +140,7 @@ static Type *find_tag(Token *tok)
 
 static Node *new_node(NodeKind kind, Token *tok)
 {
-  Node *node = calloc(1, sizeof(Node));
+  Node *node = (Node*)calloc(1, sizeof(Node));
   node->kind = kind;
   node->tok = tok;
   return node;
@@ -178,7 +186,7 @@ Node *new_cast(Node *expr, Type *ty)
 {
   add_type(expr);
 
-  Node *node = calloc(1, sizeof(Node));
+  Node *node = (Node*)calloc(1, sizeof(Node));
   node->kind = ND_CAST;
   node->tok = expr->tok;
   node->lhs = expr;
@@ -188,7 +196,7 @@ Node *new_cast(Node *expr, Type *ty)
 
 static VarScope *push_scope(char *name)
 {
-  VarScope *sc = calloc(1, sizeof(VarScope));
+  VarScope *sc = (VarScope*)calloc(1, sizeof(VarScope));
   sc->name = name;
   sc->next = scope->vars;
   scope->vars = sc;
@@ -197,7 +205,7 @@ static VarScope *push_scope(char *name)
 
 static Obj *new_var(char *name, Type *ty)
 {
-  Obj *var = calloc(1, sizeof(Obj));
+  Obj *var = (Obj*)calloc(1, sizeof(Obj));
   var->name = name;
   var->ty = ty;
   push_scope(name)->var = var;
@@ -216,8 +224,16 @@ static Obj *new_lvar(char *name, Type *ty)
 static Obj *new_gvar(char *name, Type *ty)
 {
   Obj *var = new_var(name, ty);
-  var->next = globals;
-  globals = var;
+  if (!globals) {
+    globals = var;
+    globals_end = var;
+  }
+  else {
+    globals_end->next = var;
+    globals_end = var;
+  }
+
+  globals_end->next = NULL;
   return var;
 }
 
@@ -235,6 +251,7 @@ static Obj *new_anon_gvar(Type *ty)
 static Obj *new_string_literal(char *p, Type *ty)
 {
   Obj *var = new_anon_gvar(ty);
+  var->is_function = false;
   var->init_data = p;
   return var;
 }
@@ -272,7 +289,7 @@ static int get_number(Token *tok)
 
 static void push_tag_scope(Token *tok, Type *ty)
 {
-  TagScope *sc = calloc(1, sizeof(TagScope));
+  TagScope *sc = (TagScope*)calloc(1, sizeof(TagScope));
   sc->name = strndup(tok->loc, tok->len);
   sc->ty = ty;
   sc->next = scope->tags;
@@ -496,7 +513,7 @@ static Type *abstract_declarator(Token **rest, Token *tok, Type *ty)
 }
 
 // type-name = declspec abstract-declarator
-static Type *typename(Token **rest, Token *tok)
+static Type *typename_(Token **rest, Token *tok)
 {
   Type *ty = declspec(&tok, tok, NULL);
   return abstract_declarator(rest, tok, ty);
@@ -579,7 +596,7 @@ static void struct_members(Token **rest, Token *tok, Type *ty)
       if (i++)
         tok = skip(tok, ",");
 
-      Member *mem = calloc(1, sizeof(Member));
+      Member *mem = (Member*)calloc(1, sizeof(Member));
       mem->ty = declarator(&tok, tok, basety);
       mem->name = mem->ty->name;
       cur = cur->next = mem;
@@ -610,7 +627,7 @@ static Type *struct_union_decl(Token **rest, Token *tok)
     return ty;
   }
 
-  Type *ty = calloc(1, sizeof(Type));
+  Type *ty = (Type*)calloc(1, sizeof(Type));
   struct_members(rest, tok->next, ty);
   ty->align = 1;
 
@@ -750,7 +767,10 @@ static Node *stmt(Token **rest, Token *tok)
     *rest = skip(tok, ";");
 
     add_type(exp);
-    node->lhs = new_cast(exp, current_fn->ty->return_ty);
+    if (exp->ty->kind == current_fn->ty->return_ty->kind)
+      node->lhs = exp; 
+    else
+      node->lhs = new_cast(exp, current_fn->ty->return_ty);
     return node;
   }
 
@@ -892,7 +912,6 @@ static Node *to_assign(Node *binary)
                                       binary->rhs, tok),
                            tok);
 
-
   return new_binary(ND_COMMA, expr1, expr2, tok);
 }
 
@@ -950,27 +969,27 @@ static Node *logor(Token **rest, Token *tok)
 }
 
 
-// logand = bitor ("&&" bitor)*
+// logand = bitor_ ("&&" bitor_)*
 static Node *logand(Token **rest, Token *tok) 
 {
-  Node *node = bitor(&tok, tok);
+  Node *node = bitor_(&tok, tok);
   while (equal(tok, "&&"))
   {
     Token *start = tok;
-    node = new_binary(ND_LOGAND, node, bitor(&tok, tok->next), start);
+    node = new_binary(ND_LOGAND, node, bitor_(&tok, tok->next), start);
   }
   *rest = tok;
   return node;
 }
 
 
-// bitor = bitxor ("|" bitxor)*
-static Node *bitor(Token **rest, Token *tok) 
+// bitor_ = bitxor_ ("|" bitxor_)*
+static Node *bitor_(Token **rest, Token *tok) 
 {
-  Node *node = bitxor(&tok, tok);
+  Node *node = bitxor_(&tok, tok);
   while (equal(tok, "|")) {
     Token *start = tok;
-    node = new_binary(ND_BITOR, node, bitxor(&tok, tok->next), start);
+    node = new_binary(ND_BITOR, node, bitxor_(&tok, tok->next), start);
   } 
   *rest = tok;
   return node;
@@ -978,19 +997,19 @@ static Node *bitor(Token **rest, Token *tok)
 
 
 
-// bitxor = bitand ("^" bitand)*
-static Node *bitxor(Token **rest, Token *tok) {
-  Node *node = bitand(&tok, tok);
+// bitxor_ = bitand_ ("^" bitand_)*
+static Node *bitxor_(Token **rest, Token *tok) {
+  Node *node = bitand_(&tok, tok);
   while (equal(tok, "^")) {
     Token *start = tok;
-    node = new_binary(ND_BITXOR, node, bitand(&tok, tok->next), start);
+    node = new_binary(ND_BITXOR, node, bitand_(&tok, tok->next), start);
   }
   *rest = tok;
   return node;
 }
 
-// bitand = equality ("&" equality)*
-static Node *bitand(Token **rest, Token *tok) {
+// bitand_ = equality ("&" equality)*
+static Node *bitand_(Token **rest, Token *tok) {
   Node *node = equality(&tok, tok);
   while (equal(tok, "&")) {
     Token *start = tok;
@@ -1191,7 +1210,7 @@ static Node *cast(Token **rest, Token *tok)
   if (equal(tok, "(") && is_typename(tok->next))
   {
     Token *start = tok;
-    Type *ty = typename(&tok, tok->next);
+    Type *ty = typename_(&tok, tok->next);
     tok = skip(tok, ")");
     Node *node = new_cast(cast(rest, tok), ty);
     node->tok = start;
@@ -1331,7 +1350,9 @@ static Node *funcall(Token **rest, Token *tok)
     {
       if (param_ty->kind == TY_STRUCT || param_ty->kind == TY_UNION)
         error_tok(arg->tok, "passing struct or union is not supported yet");
-      arg = new_cast(arg, param_ty);
+      
+      if (arg->ty->kind != param_ty->kind)
+        arg = new_cast(arg, param_ty);
       param_ty = param_ty->next;
     }
 
@@ -1377,7 +1398,7 @@ static Node *primary(Token **rest, Token *tok)
 
   if (equal(tok, "sizeof") && equal(tok->next, "(") && is_typename(tok->next->next))
   {
-    Type *ty = typename(&tok, tok->next->next);
+    Type *ty = typename_(&tok, tok->next->next);
     *rest = skip(tok, ")");
     return new_num(ty->size, start);
   }
@@ -1500,7 +1521,7 @@ static Token *global_variable(Token *tok, Type *basety)
     first = false;
 
     Type *ty = declarator(&tok, tok, basety);
-    new_gvar(get_ident(ty->name), ty);
+    new_gvar(get_ident(ty->name), ty)->is_function = false;
   }
 
   return tok;
@@ -1522,6 +1543,7 @@ static bool is_function(Token *tok)
 Obj *parse(Token *tok)
 {
   globals = NULL;
+  globals_end = NULL;
   while (tok->kind != TK_EOF)
   {
     VarAttr attr = {};

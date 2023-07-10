@@ -1,4 +1,15 @@
-#include "pcc.h"
+#include <string.h>
+#include <iostream>
+#include "tokenize.hpp"
+#include "parse.hpp"
+#include "codegen.hpp"
+#include "utils/util.hpp"
+#include "ir_core/IRContext.hpp"
+#include "gen_ir.hpp"
+
+
+#define GEN_IR
+
 
 static char *opt_o;
 static char *input_path;
@@ -58,9 +69,18 @@ int main(int argc, char **argv)
     Token *tok = tokenize_file(input_path);
     Obj *prog = parse(tok);
 
+#ifdef GEN_IR
+    IRContext context;
+    Module *module = gen_ir(prog, context);
+    std::cout << *module << std::endl;
+
+#else
     FILE *out = open_file(opt_o);
     // .file file_number file_name
     fprintf(out, ".file 1 \"%s\"\n", input_path);
     codegen(prog, out);
+
+#endif
+
     return 0;
 }

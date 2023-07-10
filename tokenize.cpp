@@ -1,18 +1,16 @@
-#include "pcc.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include "tokenize.hpp"
+#include "type.hpp"
+#include "utils/util.hpp"
 
 
 static char *current_filename;
 static char *current_input;
-
-
-void error(char *fmt, ...) 
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
 
 
 // reports a error message like this:
@@ -91,7 +89,7 @@ bool consume(Token **rest, Token *tok, char *str) {
 
 static Token *new_token(TokenKind kind, char *start, char *end)
 {
-    Token *tok = calloc(1, sizeof(Token));
+    Token *tok = (Token*)calloc(1, sizeof(Token));
     tok->kind = kind;
     tok->loc = start;
     tok->len = end - start;
@@ -223,7 +221,7 @@ static char *string_literal_end(char *p) {
 
 static Token *read_string_literal(char *start) {
     char *end = string_literal_end(start + 1);
-    char *buf = calloc(1, end - start);
+    char *buf = (char*)calloc(1, end - start);
     int len = 0;
 
     for (char *p = start + 1; p < end;) {
@@ -285,8 +283,6 @@ static Token* read_int_literal(char *start) {
     tok->val = val;
     return tok;
 }
-
-
 
 
 

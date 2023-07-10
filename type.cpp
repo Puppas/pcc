@@ -1,21 +1,26 @@
-#include "pcc.h"
+#include <stdlib.h>
+#include <string>
+#include "type.hpp"
+#include "parse.hpp"
+#include "tokenize.hpp"
 
 
-Type *ty_void = &(Type){TY_VOID, 1, 1};
-Type *ty_bool = &(Type){TY_BOOL, 1, 1};
-Type *ty_char = &(Type){TY_CHAR, 1, 1};
-Type *ty_short = &(Type){TY_SHORT, 2, 2};
-Type *ty_int = &(Type){TY_INT, 4, 4};
-Type *ty_long = &(Type){TY_LONG, 8, 8};
+
+Type *ty_void = new Type(TY_VOID, 1, 1);
+Type *ty_bool = new Type(TY_BOOL, 1, 1);
+Type *ty_char = new Type(TY_CHAR, 1, 1);
+Type *ty_short = new Type(TY_SHORT, 2, 2);
+Type *ty_int = new Type(TY_INT, 4, 4);
+Type *ty_long = new Type(TY_LONG, 8, 8);
+
 
 static Type *new_type(TypeKind kind, int size, int align) {
-    Type *ty = calloc(1, sizeof(Type));
+    Type *ty = (Type*)calloc(1, sizeof(Type));
     ty->kind = kind;
     ty->size = size;
     ty->align = align;
     return ty;
 }
-
 
 
 bool is_integer(Type *ty) {
@@ -24,9 +29,9 @@ bool is_integer(Type *ty) {
            k == TY_INT || k == TY_LONG || k == TY_ENUM;
 }
 
-
+    
 Type *copy_type(Type *ty) {
-    Type *ret = calloc(1, sizeof(Type));
+    Type *ret = (Type*)calloc(1, sizeof(Type));
     *ret = *ty;
     return ret;
 }
@@ -39,7 +44,7 @@ Type *pointer_to(Type *base) {
 
 
 Type *func_type(Type *return_ty) {
-    Type *ty = calloc(1, sizeof(Type));
+    Type *ty = (Type*)calloc(1, sizeof(Type));
     ty->kind = TY_FUNC;
     ty->return_ty = return_ty;
     return ty;
@@ -75,8 +80,12 @@ static Type *get_common_type(Type *ty1, Type *ty2) {
 // be promoted to match with the other.
 static void usual_arith_conversion(Node **lhs, Node **rhs) {
     Type *ty = get_common_type((*lhs)->ty, (*rhs)->ty);
-    *lhs = new_cast(*lhs, ty);
-    *rhs = new_cast(*rhs, ty);
+
+    if ((*lhs)->ty->kind != ty->kind)
+        *lhs = new_cast(*lhs, ty);
+    
+    if ((*rhs)->ty->kind != ty->kind)
+        *rhs = new_cast(*rhs, ty);
 }
 
 
@@ -117,16 +126,18 @@ void add_type(Node *node) {
         usual_arith_conversion(&node->lhs, &node->rhs);
         node->ty = node->lhs->ty;
         return;
-    case ND_NEG:
+    case ND_NEG: {
         Type *ty = get_common_type(ty_int, node->lhs->ty);
-        node->lhs = new_cast(node->lhs, ty);
+        if (node->lhs->ty->kind != ty->kind)
+            node->lhs = new_cast(node->lhs, ty);
         node->ty = ty;
         return;
+    }
     case ND_ASSIGN:
         if(node->lhs->ty->kind == TY_ARRAY) {
             error_tok(node->lhs->tok, "not an lvalue");
         }
-        if (node->lhs->ty->kind != TY_STRUCT) {
+        if (node->lhs->ty->kind != TY_STRUCT && node->lhs->ty->kind != node->rhs->ty->kind) {
             node->rhs = new_cast(node->rhs, node->lhs->ty);
         }
         node->ty = node->lhs->ty;
@@ -166,7 +177,7 @@ void add_type(Node *node) {
             node->ty = pointer_to(node->lhs->ty);
         }
         return;
-    case ND_DEREF:
+    case ND_DEREF: {
         if (!node->lhs->ty->base) 
             error_tok(node->tok, "invalid pointer dereference");
         if (node->lhs->ty->base->kind == TY_VOID)
@@ -174,6 +185,7 @@ void add_type(Node *node) {
 
         node->ty = node->lhs->ty->base;
         return;
+    }
     case ND_STMT_EXPR:
         if (node->body) {
             Node *stmt = node->body;
@@ -189,3 +201,4 @@ void add_type(Node *node) {
         return;
     }
 }
+

@@ -1,9 +1,16 @@
-#include "pcc.h"
+#include <assert.h>
+#include <stdarg.h>
+#include "codegen.hpp"
+#include "tokenize.hpp"
+#include "parse.hpp"
+#include "type.hpp"
+#include "utils/util.hpp"
+
 
 
 static FILE *output_file;
 static int depth;
-static char *argreg8[] = {"%dil", "%sil", "%dl", "cl", "%r8b", "%r9b"};
+static char *argreg8[] = {"%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"};
 static char *argreg16[] = {"%di", "%si", "%dx", "%cx", "%r8w", "%r9w"};
 static char *argreg32[] = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
 static char *argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -40,11 +47,6 @@ static void pop(char *arg)
     --depth;
 }
 
-// round up n to the nearest multiple of 'align'
-int align_to(int n, int align)
-{
-    return (n + align - 1) / align * align;
-}
 
 // Compute the absolute address of a given node.
 // It's an error if a given node does not reside in memory.

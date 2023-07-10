@@ -14,12 +14,12 @@ check() {
 
 # -o
 rm -f $tmp/out
-./pcc -o $tmp/out $tmp/empty.c
+../build/pcc -o $tmp/out $tmp/empty.c
 [ -f $tmp/out ]
 check -o
 
 # --help
-./pcc --help 2>&1 | grep -q pcc
+../build/pcc --help 2>&1 | grep -q pcc
 check --help
 
 echo OK
