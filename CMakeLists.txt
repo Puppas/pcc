@@ -15,8 +15,9 @@ set(IR_CORE ir_core/Value.cpp ir_core/Instruction.cpp
         ir_core/IRPrinter.cpp ir_core/IRContext.cpp
         ir_core/Dominators.cpp)
         
+set(PASS_SRC passes/mem2reg.cpp)
 
-set(CODE_SRC ${IR_CORE} 
+set(CODE_SRC ${IR_CORE} ${PASS_SRC}
         codegen.cpp main.cpp 
         parse.cpp  tokenize.cpp 
         type.cpp gen_ir.cpp)

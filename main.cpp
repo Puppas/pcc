@@ -6,6 +6,7 @@
 #include "utils/util.hpp"
 #include "ir_core/IRContext.hpp"
 #include "gen_ir.hpp"
+#include "passes/mem2reg.hpp"
 
 
 #define GEN_IR
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
 #ifdef GEN_IR
     IRContext context;
     Module *module = gen_ir(prog, context);
+    mem2reg(module);
     std::cout << *module << std::endl;
 
 #else
