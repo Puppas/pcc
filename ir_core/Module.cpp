@@ -41,9 +41,15 @@ Function *Module::get_function(const std::string& name) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const Module& module)
+void Module::print(std::ostream& os, bool debug) const
 {
     IRPrinter printer;
-    printer.print(&module, os);
+    printer.print(this, os, debug);
+}
+
+
+std::ostream& operator<<(std::ostream& os, const Module& module)
+{
+    module.print(os);
     return os;
 }

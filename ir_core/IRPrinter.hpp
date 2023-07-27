@@ -32,22 +32,25 @@ public:
      * \brief Prints the given Basic Block to the output stream.
      * \param bb The Basic Block to be printed.
      * \param os The output stream.
+     * \param debug The print mode.
      */
-    void print(const BB *bb, std::ostream &os);
+    void print(const BB *bb, std::ostream &os, bool debug);
 
     /**
      * \brief Prints the given function to the output stream.
      * \param func The function to be printed.
      * \param os The output stream.
+     * \param debug The print mode.
      */
-    void print(const Function *func, std::ostream &os);
+    void print(const Function *func, std::ostream &os, bool debug);
 
     /**
      * \brief Prints the given module to the output stream.
      * \param m The module to be printed.
      * \param os The output stream.
+     * \param debug The print mode.
      */
-    void print(const Module *m, std::ostream &os);
+    void print(const Module *m, std::ostream &os, bool debug);
 
 private:
     std::unordered_map<const Value*, int> val_to_num;

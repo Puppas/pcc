@@ -92,7 +92,7 @@ public:
  */
 template <typename Iterator> 
 inline iterator_range<Iterator> make_range(Iterator x, Iterator y) {
-  return iterator_range<Iterator>(std::move(x), std::move(y));
+    return iterator_range<Iterator>(std::move(x), std::move(y));
 }
 
 
@@ -105,7 +105,7 @@ inline iterator_range<Iterator> make_range(Iterator x, Iterator y) {
  */
 template <typename Iterator> 
 inline iterator_range<Iterator> make_range(std::pair<Iterator, Iterator> p) {
-  return iterator_range<Iterator>(std::move(p.first), std::move(p.second));
+    return iterator_range<Iterator>(std::move(p.first), std::move(p.second));
 }
 
 

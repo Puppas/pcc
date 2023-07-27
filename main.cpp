@@ -8,6 +8,7 @@
 #include "gen_ir.hpp"
 #include "passes/mem2reg.hpp"
 #include "passes/gvn.hpp"
+#include "passes/dce.hpp"
 
 
 #define GEN_IR
@@ -76,8 +77,8 @@ int main(int argc, char **argv)
     Module *module = gen_ir(prog, context);
     mem2reg(module);
     global_value_numbering(module);
-    std::cout << *module << std::endl;
-
+    dead_code_elimination(module);
+    module->print(std::cout, false);
 #else
     FILE *out = open_file(opt_o);
     // .file file_number file_name

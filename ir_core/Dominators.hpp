@@ -3,6 +3,12 @@
 
 
 #include "Function.hpp"
+#include "POTraversal.hpp"
+#include "iterator/to_address.hpp"
+
+
+template<bool Post>
+class DominatorTreeBase;
 
 
 /**
@@ -14,7 +20,8 @@
  */
 class DomTreeNode
 {
-    friend class DominatorTree;
+    template<bool Post>
+    friend class DominatorTreeBase;
 
 private:
     Function::size_type num;    ///< The order of this node in dfs
@@ -55,25 +62,29 @@ public:
  * 
  * A dominator tree is a tree where each node corresponds to a basic block, 
  * and each node's children are those blocks it immediately dominates.
+ * 
+ * @tparam \c Post Indicate whether it's a postdominator tree.
  */
-class DominatorTree 
+template<bool Post>
+class DominatorTreeBase
 {
 private:
     std::unordered_map<BB*, DomTreeNode*> doms;
     DomTreeNode* entry;
+    static constexpr bool IsPostDominator = Post;
 
 public:
-    DominatorTree() = default;
+    DominatorTreeBase() = default;
 
     /**
-     * @brief Construct a new \c DominatorTree object for the given function.
+     * @brief Construct a new \c DominatorTreeBase object for the given function.
      * @param func The function to construct the dominator tree for.
      */
-    DominatorTree(Function* func) {
+    DominatorTreeBase(Function* func) {
         recalculate(func);
     }
 
-    ~DominatorTree();
+    ~DominatorTreeBase();
 
     /**
      * @brief Recalculates the dominator tree for the given function.
@@ -87,7 +98,6 @@ public:
      * @return The dominator tree node corresponding to the given basic block.
      */
     DomTreeNode* get_node(const BB* block) const noexcept;
-    
 
     /**
      * @brief Returns the root node of the dominator tree.
@@ -101,6 +111,97 @@ private:
 
 
 
+using DominatorTree = DominatorTreeBase<false>;
+using PostDominatorTree = DominatorTreeBase<true>;
+
+
+
+template<bool Post>
+DomTreeNode* DominatorTreeBase<Post>::get_node(const BB* block) const noexcept 
+{ 
+    auto iter = doms.find(const_cast<BB*>(block));
+    if (iter != doms.end()) {
+        return iter->second;
+    }
+
+    return nullptr;
+}
+
+
+template<bool Post>
+DomTreeNode* DominatorTreeBase<Post>::intersect(DomTreeNode* lhs, DomTreeNode* rhs) 
+{
+    while (lhs != rhs) 
+    {
+        while (lhs->num < rhs->num)
+            lhs = lhs->idom;
+
+        while (rhs->num < lhs->num)
+            rhs = rhs->idom;
+    }
+
+    return lhs;
+}
+
+
+template<bool Post>
+DominatorTreeBase<Post>::~DominatorTreeBase()
+{
+    for (auto iter = doms.begin(); iter != doms.end(); ++iter) {
+        delete iter->second;
+    }
+}
+
+
+template<bool Post>
+void DominatorTreeBase<Post>::recalculate(Function* func) 
+{
+    using GT = std::conditional_t<IsPostDominator, 
+                    InverseGraphTraits<Function>, 
+                    GraphTraits<Function>>;
+
+    int i = 0;
+    POTraversal<Function, GT> traversal(func);
+    for (auto iter = traversal.begin(); iter != traversal.end(); ++iter) {
+        doms[to_address(iter)] = new DomTreeNode(i, to_address(iter));
+        ++i;
+    }
+
+    entry = doms[GT::get_entry_node(func)];
+    entry->idom = entry;
+
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+        for (auto bb = std::next(traversal.rbegin()); bb != traversal.rend(); ++bb) 
+        {
+            DomTreeNode* new_idom = nullptr;
+            bool first = true;
+            for (auto&& pred = GT::parent_begin(to_address(bb)); pred != GT::parent_end(to_address(bb)); ++pred) {
+                if (doms[to_address(pred)]->idom) {
+                    if (first) {
+                        new_idom = doms[to_address(pred)];
+                        first = false;
+                    }
+                    else
+                        new_idom = intersect(new_idom, doms[to_address(pred)]);
+                }
+            }
+
+            if (new_idom != doms[to_address(bb)]->idom) {
+                doms[to_address(bb)]->idom = new_idom;
+                changed = true;
+            }
+        }       
+    }
+
+    for (auto iter = doms.begin(); iter != doms.end(); ++iter) {
+        DomTreeNode* node = iter->second;
+        if (node != entry)
+            node->idom->children.push_back(node);
+    }
+}
 
 
 

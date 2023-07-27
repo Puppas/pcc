@@ -5,6 +5,7 @@
 #include <vector>
 #include "utils/ilist.hpp"
 #include "Instruction.hpp"
+#include "BasicBlockParam.hpp"
 
 
 class Function;
@@ -28,14 +29,16 @@ class BB: public Value, public ilist_node<BB>
 
 public:
     using inst_list = ilist<Inst>;
-    using param_list = std::vector<Value*>;
+    using param_list = std::vector<BBParam*>;
     using iterator = typename inst_list::iterator;
     using const_iterator = typename inst_list::const_iterator;
     using reverse_iterator = typename inst_list::reverse_iterator;
     using const_reverse_iterator = typename inst_list::const_reverse_iterator;
     using size_type = typename inst_list::size_type;
-    using param_iterator = indirect_iterator<param_list::iterator, Value>;
-    using const_param_iterator = indirect_iterator<param_list::const_iterator, const Value>;
+    using param_iterator = indirect_iterator<param_list::iterator, BBParam>;
+    using const_param_iterator = indirect_iterator<param_list::const_iterator, const BBParam>;
+    using succ_iterator = BrInst::succ_iterator;
+    using const_succ_iterator = BrInst::const_succ_iterator;
 
     class pred_iterator: public iterator_adaptor<pred_iterator, user_iterator, BB>
     {
@@ -136,20 +139,30 @@ public:
     const_param_iterator param_begin() const noexcept { return make_indirect_iterator(params.begin()); }
     const_param_iterator param_end() const noexcept { return make_indirect_iterator(params.end()); }
 
+    iterator_range<param_iterator> get_params() {
+        return make_range(param_begin(), param_end());
+    }
+
+    iterator_range<const_param_iterator> get_params() const {
+        return make_range(param_begin(), param_end());
+    }
+
+
     /**
      * @brief Inserts a new parameter of the given type into the parameter list of this basic block.
      * 
      * @param ty The type of the new parameter.
      * @return A pointer to the newly inserted parameter.
      */
-    Value* insert_param(Type* ty);
+    BBParam* insert_param(Type* ty);
 
     /**
      * @brief Erases the given paramter in the parameter list
      * 
-     * @param val To be erased parameter
+     * @param idx The index of paramter to be erased 
+     * @return An iterator pointing to the parameter following the erased one
      */
-    void erase_param(Value* val);
+    param_iterator erase_param(param_list::size_type idx);
 
     Inst& front() { return insts.front(); }
     const Inst& front() const { return insts.front(); }
@@ -196,25 +209,83 @@ public:
         return make_range(pred_begin(), pred_end());
     }
 
+    succ_iterator succ_begin() { return successors().begin(); }
+    const_succ_iterator succ_begin() const { return successors().begin(); }
+
+    succ_iterator succ_end() { return successors().end(); }
+    const_succ_iterator succ_end() const { return successors().end(); }
+
     /**
      * @brief Returns an \c iterator_range over the list of successor basic blocks of this basic block.
      * 
      * @return An \c iterator_range of successor basic blocks.
      */
-    iterator_range<BrInst::succ_iterator> successors();
+    iterator_range<succ_iterator> successors();
     
-    iterator_range<BrInst::const_succ_iterator> successors() const;
+    iterator_range<const_succ_iterator> successors() const;
 
     /// @brief Removes all the references to this basic block.
     void drop_all_references();
+
+    /**
+     * @brief Inserts this basic block before the specified basic block.
+     * 
+     * @param pos The reference basic block before which this block will be inserted.
+     */
+    void insert_before(BB *pos);
+
+    /**
+     * @brief Inserts this basic block after the specified basic block.
+     * 
+     * @param pos The reference basic block after which this block will be inserted.
+     */
+    void insert_after(BB *pos);
 
     /// @brief Removes this basic block from its parent function.
     /// @return An iterator pointing to the element after the erased one.
     ilist<BB>::iterator erase_from_parent();
 
+    /// This method unlinks 'this' from the parent function, but does not
+    /// delete it.
+    ilist<BB>::iterator remove_from_parent();
+
+    /**
+     * @brief Moves this basic block before the specified basic block.
+     * 
+     * @param pos The reference basic block before which this block will be moved.
+     * @return An iterator pointing to the position after the erased one.
+     */
+    ilist<BB>::iterator move_before(BB *pos);
+
+    /**
+     * @brief Moves this basic block after the specified basic block.
+     * 
+     * @param pos The reference basic block after which this block will be moved.
+     * @return An iterator pointing to the position after the erased one.
+     */
+    ilist<BB>::iterator move_after(BB *pos);
+
     static bool classof(const Value* v) {
         return v->get_kind() == ValueKind::BB;
     }
+
+    /**
+     * @brief Prints the representation of the basic block to the given output stream.
+     * 
+     * @param os The output stream to print to.
+     * @param debug A flag indicating whether to print debug information.
+     */
+    void print(std::ostream& os, bool debug = false) const;
+
+    /**
+     * @brief Overloaded operator for printing the basic block to an output stream.
+     * 
+     * @param os The output stream.
+     * @param bb The basic block to be printed.
+     * 
+     * @return Reference to the output stream.
+     */
+    friend std::ostream& operator<<(std::ostream& os, const BB& bb);
 };
 
 

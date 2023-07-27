@@ -12,10 +12,10 @@ set(ir_core_src ir_core/Value.cpp ir_core/Instruction.cpp
         ir_core/BasicBlock.cpp ir_core/Constant.cpp
         ir_core/GlobalObject.cpp ir_core/Function.cpp 
         ir_core/GlobalVariable.cpp ir_core/Module.cpp
-        ir_core/IRPrinter.cpp ir_core/IRContext.cpp
-        ir_core/Dominators.cpp)
+        ir_core/IRPrinter.cpp ir_core/IRContext.cpp)
         
-set(pass_src passes/mem2reg.cpp passes/gvn.cpp)
+set(pass_src passes/mem2reg.cpp passes/gvn.cpp
+        passes/dce.cpp)
 
 set(code_src ${ir_core_src} ${pass_src}
         codegen.cpp main.cpp 

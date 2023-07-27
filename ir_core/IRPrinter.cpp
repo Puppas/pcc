@@ -164,8 +164,11 @@ std::string IRPrinter::inst_to_str(const Inst *inst)
 }
 
 
-void IRPrinter::print(const BB *bb, std::ostream &os)
+void IRPrinter::print(const BB *bb, std::ostream &os, bool debug)
 {
+    if (debug)
+        os << bb << "  ";
+
     std::string header = val_to_str(bb);
 
     if (bb->param_size() > 0) {
@@ -189,6 +192,9 @@ void IRPrinter::print(const BB *bb, std::ostream &os)
 
     os << header << "\n";
     for (auto iter = bb->begin(); iter != bb->end(); ++iter) {
+        if (debug)
+            os << to_address(iter) << "  ";
+        
         os << "  " << inst_to_str(to_address(iter)) << '\n';
     }
     os << '\n';
@@ -196,7 +202,7 @@ void IRPrinter::print(const BB *bb, std::ostream &os)
 
 
 
-void IRPrinter::print(const Function *func, std::ostream &os)
+void IRPrinter::print(const Function *func, std::ostream &os, bool debug)
 {
     val_to_num.clear();
     next_num = 0;
@@ -214,14 +220,14 @@ void IRPrinter::print(const Function *func, std::ostream &os)
     os << decl << " {\n";
 
     for (auto iter = func->begin(); iter != func->end(); ++iter) {
-        print(to_address(iter), os);
+        print(to_address(iter), os, debug);
     }
 
     os << "}\n\n";
     return;
 }
 
-void IRPrinter::print(const Module *m, std::ostream &os)
+void IRPrinter::print(const Module *m, std::ostream &os, bool debug)
 {
     for (auto gvar = m->global_begin(); gvar != m->global_end(); ++gvar)
     {
@@ -230,6 +236,6 @@ void IRPrinter::print(const Module *m, std::ostream &os)
 
     for (auto func = m->begin(); func != m->end(); ++func)
     {
-        print(to_address(func), os);
+        print(to_address(func), os, debug);
     }
 }

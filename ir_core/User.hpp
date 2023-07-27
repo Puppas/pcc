@@ -54,6 +54,11 @@ protected:
         ops.insert(before.base(), new Use(this, op));
     }
 
+    void remove_operand(op_size_type i) {
+        set_operand(i, nullptr);
+        ops.erase(ops.begin() + i);
+    }
+
 public:
     /**
      * @brief Returns an iterator pointing to the beginning of the operand list.

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include "Function.hpp"
+#include "IRPrinter.hpp"
 
 
 BB::BB(Function *parent, BB* before): 
@@ -46,19 +47,23 @@ iterator_range<BrInst::const_succ_iterator> BB::successors() const
 }
 
 
-Value* BB::insert_param(Type* ty) 
+BBParam* BB::insert_param(Type* ty) 
 {
-    Value* param = new Value(ty, ValueKind::VALUE);
+    BBParam* param = new BBParam(ty, this, params.size());
     params.push_back(param);
     return param;
 }
 
 
-void BB::erase_param(Value* val)
+BB::param_iterator BB::erase_param(param_list::size_type idx)
 {
-    auto iter = std::find(params.begin(), params.end(), val);
-    params.erase(iter);
-    delete val;
+    delete *(params.begin() + idx);
+    auto iter = params.erase(params.begin() + idx);
+    for (; iter != params.end(); ++iter) {
+        (*iter)->set_index(iter - params.begin());
+    }
+
+    return make_indirect_iterator(params.begin() + idx);
 }
 
 
@@ -69,6 +74,53 @@ void BB::drop_all_references()
     }
 }
 
+
+void BB::insert_before(BB *pos)
+{
+    parent->get_bb_list().insert(pos, this);
+}
+
+
+void BB::insert_after(BB *pos)
+{
+    parent->get_bb_list().insert(std::next(Function::iterator(pos)), this);
+}
+
+
 ilist<BB>::iterator BB::erase_from_parent() {    
     return parent->get_bb_list().erase(this);
+}
+
+
+ilist<BB>::iterator BB::remove_from_parent()
+{
+    return parent->get_bb_list().remove(this);
+}
+
+
+ilist<BB>::iterator BB::move_before(BB *pos)
+{
+    auto next = remove_from_parent();
+    insert_before(pos);
+    return next;   
+}
+
+ilist<BB>::iterator BB::move_after(BB *pos)
+{
+    auto next = remove_from_parent();
+    insert_after(pos);
+    return next;
+}
+
+
+void BB::print(std::ostream& os, bool debug) const
+{
+    IRPrinter printer;
+    printer.print(this, os, debug);
+}
+
+std::ostream& operator<<(std::ostream& os, const BB& bb)
+{
+    bb.print(os);
+    return os;
 }

@@ -66,7 +66,9 @@ enum class ValueKind
 
     CONSTANT_END,
 
-    BB
+    BB,
+    BB_PARAM,
+    FUNCTION_PARAM
 };
 
 

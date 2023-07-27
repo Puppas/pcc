@@ -5,17 +5,16 @@
 #include "mem2reg.hpp"
 #include "ir_core/Module.hpp"
 #include "utils/util.hpp"
-#include "ir_core/RPOTraversal.hpp"
 
 
 static std::unordered_map<BB*, std::unordered_map<AllocaInst*, Value*>> m2r;
 static std::unordered_map<Value*, Value*> r2r;
 
-static std::unordered_map<Value*, AllocaInst*> param_to_var;
-static std::unordered_map<Value*, std::vector<Value*>> param_to_args;
-static std::vector<std::pair<BB*, Value*>> params_erased;
+static std::unordered_map<BBParam*, AllocaInst*> param_to_var;
+static std::unordered_map<BBParam*, std::vector<Value*>> param_to_args;
+static std::vector<std::pair<BB*, BBParam*>> params_erased;
 
-static std::unordered_set<Value*> visited;
+static std::unordered_set<BBParam*> visited;
 
 
 static bool can_promote(const AllocaInst* ai)
@@ -79,7 +78,7 @@ static Value* find_val_trivial(AllocaInst* var, BB* block)
         return m2r[block][var];
     }
 
-    Value* val = block->insert_param(var->get_type()->base);
+    BBParam* val = block->insert_param(var->get_type()->base);
     m2r[block][var] = val;
     param_to_var[val] = var;
     return val;
@@ -109,8 +108,9 @@ static void set_map(Function* fn, const std::unordered_set<AllocaInst*>& alloca_
 
 static Value* find_val(AllocaInst* var, BB* block);
 
-std::vector<Value*> get_pred_vals(BB* bb, Value* param)
+std::vector<Value*> get_pred_vals(BBParam* param)
 {
+    BB* bb = param->get_parent();
     std::vector<Value*> record;
     std::set<Value*> vals;
 
@@ -133,14 +133,15 @@ std::vector<Value*> get_pred_vals(BB* bb, Value* param)
 }
 
 
-static Value* set_arg(BB* block, Value* param)
+static Value* set_arg(BBParam* param)
 {
     if (visited.find(param) != visited.end())
         return param;
 
+    BB* block = param->get_parent();
     visited.insert(param);
 
-    std::vector<Value*> pred_vals = get_pred_vals(block, param);
+    std::vector<Value*> pred_vals = get_pred_vals(param);
     if (pred_vals.size() == 1) {
         Value* val = pred_vals[0];
         r2r[param] = val;
@@ -169,10 +170,9 @@ static Value* map_to(Value* val)
 
 static Value* find_val(AllocaInst* var, BB* block) 
 {
-    auto iter = m2r[block].find(var);
-    if (iter != m2r[block].end()) {
-        if (param_to_var.find(map_to(iter->second)) != param_to_var.end()) {
-            set_arg(block, map_to(iter->second));
+    if (auto iter = m2r[block].find(var); iter != m2r[block].end()) {
+        if (BBParam* param = dyn_cast<BBParam>(map_to(iter->second))) {
+            set_arg(param);
         }
         return map_to(iter->second);
     }
@@ -182,11 +182,11 @@ static Value* find_val(AllocaInst* var, BB* block)
         return m2r[block][var];
     }
 
-    Value* val = block->insert_param(var->get_type()->base);
+    BBParam* val = block->insert_param(var->get_type()->base);
     m2r[block][var] = val;
     param_to_var[val] = var;
     assert(r2r.count(val) == 0);
-    return set_arg(block, val);
+    return set_arg(val);
 }
 
 
@@ -194,7 +194,7 @@ static void set_args(Function* fn)
 {
     for (auto bb = fn->begin(); bb != fn->end(); ++bb)
         for (auto iter = bb->param_begin(); iter != bb->param_end(); ++iter)
-            set_arg(to_address(bb), to_address(iter));
+            set_arg(to_address(iter));
 }
 
 
@@ -229,7 +229,7 @@ static void add_bb_args(Function* fn, const std::unordered_set<AllocaInst*>& wor
     set_args(fn);
 
     for (auto&& p: params_erased) {
-        p.first->erase_param(p.second);
+        p.first->erase_param(p.second->get_index());
     }
 
     fill_args(fn);

@@ -1,4 +1,5 @@
 #include "Module.hpp"
+#include "IRPrinter.hpp"
 
 
 Function::Function(Type* ty, const std::string& name, Module* parent): 
@@ -13,7 +14,7 @@ void Function::build_params()
 {
     Type* func_ty = get_value_type();
     for (Type* ty = func_ty->params; ty; ty = ty->next)
-        params.push_back(new Value(ty, ValueKind::VALUE));
+        params.push_back(new FunctionParam(ty, this));
 }
 
 Function::~Function()
@@ -34,4 +35,18 @@ void Function::drop_all_references()
 symbol_table_list<Function>::iterator Function::erase_from_parent()
 {
     return get_parent()->get_function_list().erase(this);
+}
+
+
+void Function::print(std::ostream& os, bool debug) const
+{
+    IRPrinter printer;
+    printer.print(this, os, debug);
+}
+
+
+std::ostream& operator<<(std::ostream& os, const Function& func)
+{
+    func.print(os);
+    return os;
 }

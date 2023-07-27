@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <unordered_map>
 #include <algorithm>
+#include <set>
 #include "gen_ir.hpp"
 #include "parse.hpp"
 #include "type.hpp"
@@ -11,6 +12,7 @@
 
 
 static std::unordered_map<Obj*, Value*> alloca_map;
+static std::set<BB*> ret_blocks;
 
 
 static Value *gen_expr(Node *node, IRBuilder& builder);
@@ -245,6 +247,7 @@ static void gen_stmt(Node *node, Function* function, IRBuilder& builder) {
   }
   case ND_RETURN: {
     builder.create_ret(gen_expr(node->lhs, builder));
+    ret_blocks.insert(builder.get_insert_block());
     return;
   }
   case ND_EXPR_STMT:
@@ -309,6 +312,28 @@ static void store_param(Obj *fn, Function* function, IRBuilder& builder)
     }
 }
 
+
+void unify_return_blocks(Function *f, IRBuilder& builder) 
+{
+    BB* entry = &f->front();
+    builder.set_insert_point(to_address(entry->begin()));
+    AllocaInst* new_ret_alloca = builder.create_alloca(f->get_return_type());
+
+    BB *new_ret_block = BB::create(f);
+    builder.set_insert_point(new_ret_block);
+    builder.create_ret(builder.create_load(new_ret_alloca));
+
+    for (BB* bb: ret_blocks)
+    {
+        RetInst* ret_inst = cast<RetInst>(&bb->back());
+        builder.set_insert_point(bb);
+        builder.create_store(ret_inst->get_operand(0), new_ret_alloca);
+        builder.create_br(new_ret_block);
+        ret_inst->erase_from_parent();
+    }
+}
+
+
 static void gen_func_ir(Obj *prog, Module* module, IRContext& context)
 {
     for (Obj* fn = prog; fn; fn = fn->next)
@@ -324,6 +349,16 @@ static void gen_func_ir(Obj *prog, Module* module, IRContext& context)
         store_param(fn, function, builder);
 
         gen_stmt(fn->body, function, builder);
+
+        if (ret_blocks.size() > 1) {
+            unify_return_blocks(function, builder);
+        }
+        else if (*ret_blocks.begin() != &function->back()) {
+            BB* ret_bb = *ret_blocks.begin();
+            ret_bb->move_after(&function->back());
+        }
+
+        ret_blocks.clear();
     }
 }
 

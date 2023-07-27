@@ -5,6 +5,8 @@
 #include "GlobalObject.hpp"
 #include "BasicBlock.hpp"
 #include "symbol_table_list.hpp"
+#include "FunctionParam.hpp"
+#include "GraphTraits.hpp"
 
 
 /**
@@ -21,11 +23,11 @@ class Function: public GlobalObject, public ilist_node<Function>
 
 public:
     using bb_list = ilist<BB>; ///< Type definition for list of basic blocks.
-    using param_list = std::vector<Value*>; ///< Type definition for list of function parameters.
+    using param_list = std::vector<FunctionParam*>; ///< Type definition for list of function parameters.
     using iterator = bb_list::iterator; ///< Iterator for basic block list.
     using const_iterator = bb_list::const_iterator; ///< Const iterator for basic block list.
-    using param_iterator = indirect_iterator<param_list::iterator, Value>; ///< Iterator for function parameters list.
-    using const_param_iterator = indirect_iterator<param_list::const_iterator, const Value>; ///< Const iterator for function parameters list.
+    using param_iterator = indirect_iterator<param_list::iterator, FunctionParam>; ///< Iterator for function parameters list.
+    using const_param_iterator = indirect_iterator<param_list::const_iterator, const FunctionParam>; ///< Const iterator for function parameters list.
     using size_type = bb_list::size_type; ///< Size type for basic block list.
 
 private:
@@ -192,7 +194,126 @@ public:
     static bool classof(const Value* v) {
         return v->get_kind() == ValueKind::FUNCTION;
     }
+
+    /**
+     * @brief Prints the representation of the function to the given output stream.
+     * 
+     * @param os The output stream to print to.
+     * @param debug A flag indicating whether to print debug information.
+     */
+    void print(std::ostream& os, bool debug = false) const;
+
+    /**
+     * @brief Overloaded operator for printing the function to an output stream.
+     * 
+     * @param os The output stream.
+     * @param func The function to be printed.
+     * 
+     * @return Reference to the output stream.
+     */
+    friend std::ostream& operator<<(std::ostream& os, const Function& func);
 };
+
+
+
+// Specializations of GraphTraits for the Function graph type.
+template <> 
+struct GraphTraits<Function> 
+{
+    using node_type = BB *;
+    using child_iterator = BB::succ_iterator;
+    using parent_iterator = BB::pred_iterator;
+    using node_iterator = Function::iterator;
+
+    static node_type get_entry_node(Function *f) { return &f->front(); }
+
+    static child_iterator child_begin(node_type n) { return n->succ_begin(); }
+    static child_iterator child_end(node_type n) { return n->succ_end(); }
+
+    static parent_iterator parent_begin(node_type n) { return n->pred_begin(); }
+    static parent_iterator parent_end(node_type n) { return n->pred_end(); }
+
+    static node_iterator nodes_begin(Function *f) { return f->begin(); }
+    static node_iterator nodes_end(Function *f) { return f->end(); }
+
+    static Function::size_type size(Function *f) { return f->size(); }
+};
+
+
+template <> 
+struct GraphTraits<const Function> {
+    using node_type = const BB *;
+    using child_iterator = BB::const_succ_iterator;
+    using parent_iterator = BB::const_pred_iterator;
+    using node_iterator = Function::const_iterator;
+
+    static node_type get_entry_node(const Function *f) { return &f->front(); }
+
+    static child_iterator child_begin(node_type n) { return n->succ_begin(); }
+    static child_iterator child_end(node_type n) { return n->succ_end(); }
+
+    static parent_iterator parent_begin(node_type n) { return n->pred_begin(); }
+    static parent_iterator parent_end(node_type n) { return n->pred_end(); }
+
+    static node_iterator nodes_begin(const Function *f) { return f->begin(); }
+    static node_iterator nodes_end(const Function *f) { return f->end(); }
+
+    static Function::size_type size(const Function *f) { return f->size(); }
+};
+
+
+
+template <> 
+struct InverseGraphTraits<Function>
+{
+    using node_type = BB *;
+    using child_iterator = BB::pred_iterator;
+    using parent_iterator = BB::succ_iterator;
+    using node_iterator = std::reverse_iterator<Function::iterator>;
+
+    static node_type get_entry_node(Function *f) { return &f->back(); }
+
+    static child_iterator child_begin(node_type n) { return n->pred_begin(); }
+    static child_iterator child_end(node_type n) { return n->pred_end(); }
+
+    static parent_iterator parent_begin(node_type n) { return n->succ_begin(); }
+    static parent_iterator parent_end(node_type n) { return n->succ_end(); }
+
+    static node_iterator nodes_begin(Function *f) { return std::make_reverse_iterator(f->end()); }
+    static node_iterator nodes_end(Function *f) { return std::make_reverse_iterator(f->begin()); }
+
+    static Function::size_type size(Function *f) { return f->size(); }
+};
+
+
+
+template <> 
+struct InverseGraphTraits<const Function>
+{
+    using node_type = const BB *;
+    using child_iterator = BB::const_pred_iterator;
+    using parent_iterator = BB::const_succ_iterator;
+    using node_iterator = std::reverse_iterator<Function::const_iterator>;
+
+    static node_type get_entry_node(const Function *f) { return &f->back(); }
+
+    static child_iterator child_begin(node_type n) { return n->pred_begin(); }
+    static child_iterator child_end(node_type n) { return n->pred_end(); }
+
+    static parent_iterator parent_begin(node_type n) { return n->succ_begin(); }
+    static parent_iterator parent_end(node_type n) { return n->succ_end(); }
+
+    static node_iterator nodes_begin(const Function *f) { 
+        return std::make_reverse_iterator(f->end()); 
+    }
+
+    static node_iterator nodes_end(const Function *f) { 
+        return std::make_reverse_iterator(f->begin()); 
+    }
+
+    static Function::size_type size(const Function *f) { return f->size(); }
+};
+
 
 
 #endif /* PCC_IR_CORE_FUNCTION_H */

@@ -170,6 +170,21 @@ public:
         return pos;
     }
 
+    /**
+     * @brief Removes an element but don't delete it
+     * 
+     * @param pos Iterator to the element to remove.
+     * @return An iterator to the element following the removed one. 
+     */
+    iterator remove(iterator pos) {
+        pos->prev->next = pos->next;
+        pos->next->prev = pos->prev;
+
+        --count;
+        return pos->next;
+    }
+
+
     reference front() {
         return *(blank->next);
     }

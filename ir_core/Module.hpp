@@ -114,6 +114,14 @@ public:
     IRContext &get_context() const { return context; }
 
     /**
+     * @brief Prints the representation of the module to the given output stream.
+     * 
+     * @param os The output stream to print to.
+     * @param debug A flag indicating whether to print debug information.
+     */
+    void print(std::ostream& os, bool debug = false) const;
+
+    /**
      * @brief Overloaded operator for printing the module to an output stream.
      * 
      * @param os The output stream.
@@ -122,6 +130,7 @@ public:
      * @return Reference to the output stream.
      */
     friend std::ostream& operator<<(std::ostream& os, const Module& module);
+
 };
 
 

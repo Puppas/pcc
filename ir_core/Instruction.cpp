@@ -6,13 +6,73 @@
 Inst::Inst(Type* ty, ValueKind kind, BB* parent, Inst* before): 
     User(ty, kind), parent(parent) 
 {
-    parent->get_inst_list().insert(before, this);
+    if (parent)
+        parent->get_inst_list().insert(before, this);
 }
 
 
-ilist<Inst>::iterator Inst::erase_from_parent() 
+Inst* Inst::clone() const
+{
+    Inst* inst = new Inst(get_type(), get_kind(), nullptr, nullptr);
+    for (int i = 0; i < this->get_num_operands(); ++i) {
+        inst->add_operand(this->get_operand(i));
+    }
+    
+    return inst;
+}
+
+void Inst::insert_before(Inst *pos)
+{
+    this->parent = pos->get_parent();
+    parent->get_inst_list().insert(pos, this);
+}
+
+
+void Inst::insert_before(BB *bb, ilist<Inst>::iterator pos)
+{
+    this->parent = bb;
+    parent->get_inst_list().insert(pos, this);
+}
+
+
+void Inst::insert_after(Inst *pos)
+{
+    this->parent = pos->get_parent();
+    parent->get_inst_list().insert(std::next(BB::iterator(pos)), this);
+}
+
+
+BB::iterator Inst::erase_from_parent() 
 {
     return parent->get_inst_list().erase(this);
+}
+
+
+BB::iterator Inst::remove_from_parent()
+{
+    return parent->get_inst_list().remove(this);
+}
+
+
+ilist<Inst>::iterator Inst::move_before(Inst *pos)
+{
+    auto next = remove_from_parent();
+    insert_before(pos);
+    return next;
+}
+
+ilist<Inst>::iterator Inst::move_before(BB *bb, ilist<Inst>::iterator pos)
+{
+    auto next = remove_from_parent();
+    insert_before(bb, pos);
+    return next;
+}
+
+ilist<Inst>::iterator Inst::move_after(Inst *pos)
+{
+    auto next = remove_from_parent();
+    insert_after(pos);
+    return next;
 }
 
 
@@ -90,6 +150,21 @@ BB* BrInst::get_successor(op_size_type i) {
     return const_cast<BB*>(static_cast<const BrInst*>(this)->get_successor(i));
 }
 
+
+void BrInst::set_successor(op_size_type i, BB* bb)
+{
+    if (is_conditional()) {
+        assert(i == 0 || i == 1);
+        return set_operand(i + 1, bb);
+    }
+    else {
+        assert(i == 0);
+        return set_operand(i , bb);
+    }
+}
+
+
+
 iterator_range<BrInst::succ_iterator> 
 BrInst::successors() {
     if (is_conditional())
@@ -104,6 +179,13 @@ BrInst::successors() const {
         return make_range(const_succ_iterator(op_begin() + 1), const_succ_iterator(op_begin() + 3));
     else 
         return make_range(const_succ_iterator(op_begin()), const_succ_iterator(op_begin() + 1));
+}
+
+Inst *BrInst::clone() const
+{
+    BrInst* inst = cast<BrInst>(Inst::clone());
+    inst->else_args_offset = this->else_args_offset;
+    return inst;
 }
 
 
@@ -154,6 +236,26 @@ void BrInst::add_arg(op_size_type i, Value *arg, op_size_type loc) {
         add_operand(op_begin() + 1 + loc, arg);
     }
 }
+
+
+void BrInst::remove_arg(op_size_type i, op_size_type idx)
+{
+    if (is_conditional()) {
+        assert(i == 0 || i == 1);
+        if (i == 0) {
+            remove_operand(3 + idx);
+            --else_args_offset;
+        }
+        else {
+            remove_operand(else_args_offset + idx);
+        } 
+    }
+    else {
+        assert(i == 0);
+        remove_operand(1 + idx);
+    }
+}
+
 
 
 iterator_range<BrInst::op_iterator> 

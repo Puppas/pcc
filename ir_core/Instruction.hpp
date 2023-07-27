@@ -88,9 +88,34 @@ public:
                get_kind() < ValueKind::INST_TERM_END;
     }
 
+
+    /// Create a copy of this instruction that is identical in all ways, 
+    /// except the instruction has no parent.
+    virtual Inst *clone() const;
+
+    /// Insert an unlinked instruction into a basic block immediately before
+    /// the specified instruction.
+    void insert_before(Inst *pos);
+
+    void insert_before(BB *bb, ilist<Inst>::iterator pos);
+
+    /// Insert an unlinked instruction into a basic block immediately after the
+    /// specified instruction.
+    void insert_after(Inst *pos);
+
     /// @brief Removes this instruction from its parent basic block.
     /// @return An iterator pointing to the element after the erased one.
     ilist<Inst>::iterator erase_from_parent();
+
+    /// This method unlinks 'this' from the containing basic block, but does not
+    /// delete it.
+    ilist<Inst>::iterator remove_from_parent();
+
+    ilist<Inst>::iterator move_before(Inst *pos);
+
+    ilist<Inst>::iterator move_before(BB *bb, ilist<Inst>::iterator pos);
+
+    ilist<Inst>::iterator move_after(Inst *pos);
 
     /// @brief Checks if a \c Value object is an instance of the \c Inst class.
     /// @param v The \c Value object to check.
@@ -216,6 +241,11 @@ class RetInst: public Inst
     friend class IRBuilder;
 private:
     RetInst(Value* ret, BB* parent, Inst* before);
+
+public:
+    static bool classof(const Value *v) {
+        return v->get_kind() == ValueKind::INST_RETURN;
+    }
 };
 
 
@@ -371,6 +401,8 @@ public:
     BB* get_successor(op_size_type i);
     const BB* get_successor(op_size_type i) const;
 
+    void set_successor(op_size_type i, BB* bb);
+
     /**
      * @brief Get the range of successors for this branch instruction.
      * 
@@ -378,6 +410,8 @@ public:
      */
     iterator_range<succ_iterator> successors();
     iterator_range<const_succ_iterator> successors() const;
+
+    virtual Inst *clone() const;
 
     /**
      * @brief Get the number of arguments for a successor basic block.
@@ -396,6 +430,8 @@ public:
     void add_arg(op_size_type i, Value* arg);
 
     void add_arg(op_size_type i, Value* arg, op_size_type loc);
+
+    void remove_arg(op_size_type i, op_size_type idx);
 
     /**
      * @brief Get the range of arguments for a successor basic block.
@@ -432,6 +468,63 @@ private:
     CallInst(Function* callee, const std::vector<Value*>& args, BB* parent, Inst* before);
 
 public:
+    /**
+     * @brief Begin iterator to the function's arguments.
+     * 
+     * @return Iterator pointing to the start of the arguments.
+     */
+    op_iterator arg_begin() noexcept { return op_begin() + 1; }
+    const_op_iterator arg_begin() const noexcept { return op_begin() + 1; }
+
+    /**
+     * @brief End iterator to the function's arguments.
+     * 
+     * @return Iterator pointing to the end of the arguments.
+     */
+    op_iterator arg_end() noexcept { return op_end(); }
+    const_op_iterator arg_end() const noexcept { return op_end(); }
+
+    iterator_range<op_iterator> args() {
+        return make_range(arg_begin(), arg_end());
+    }
+    iterator_range<const_op_iterator> args() const {
+        return make_range(arg_begin(), arg_end());
+    }
+
+    /// Checks if the function has any arguments.
+    bool arg_empty() const noexcept { return arg_end() == arg_begin(); }
+
+    /// Gets the number of arguments to the function.
+    op_size_type arg_size() const noexcept { return arg_end() - arg_begin(); }
+
+    /**
+     * @brief Retrieves the argument at the specified index.
+     * 
+     * @param i Index of the argument to retrieve.
+     * @return Pointer to the argument value.
+     */
+    Value *get_arg(op_size_type i) const {
+        assert(i < arg_size() && "Out of bounds!");
+        return get_operand(i + 1);
+    }
+
+    /**
+     * @brief Sets the argument at the specified index.
+     * 
+     * @param i Index of the argument to set.
+     * @param v Pointer to the new argument value.
+     */
+    void set_arg(op_size_type i, Value *v) {
+        assert(i < arg_size() && "Out of bounds!");
+        set_operand(i + 1, v);
+    }
+
+    /// @brief Retrieves the function being called.
+    /// @return Pointer to the called function.
+    Function* get_called_function() const noexcept { 
+        return cast<Function>(get_operand(0).get()); 
+    }
+
     static bool classof(const Value* v) {
         return v->get_kind() == ValueKind::INST_CALL;
     }
