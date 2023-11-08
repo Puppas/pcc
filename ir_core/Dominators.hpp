@@ -1,35 +1,46 @@
 #ifndef PCC_IR_CORE_DOMINATORS_H
 #define PCC_IR_CORE_DOMINATORS_H
 
-
-#include "Function.hpp"
+#include "BasicBlock.hpp"
 #include "POTraversal.hpp"
 #include "iterator/to_address.hpp"
 
 
-template<bool Post>
+// node traits to get the parent type
+template<typename NodeT>
+struct DomTreeNodeTraits
+{
+    using parent_ptr = decltype(std::declval<NodeT>().get_parent());
+    using parent = std::remove_pointer_t<parent_ptr>;
+};
+
+
+
+template<typename NodeT, bool Post>
 class DominatorTreeBase;
 
 
 /**
- * @class DomTreeNode
+ * @class DomTreeNodeBase
  * @brief Represents a node in the dominator tree.
  * 
- * Each node in the tree corresponds to a basic block within the function.
- * The tree structure encodes the dominator-subordinate relationships between basic blocks.
+ * The tree structure encodes the dominator-subordinate relationships between nodes.
+ * 
+ * @tparam \c NodeT The actual block type.
  */
-class DomTreeNode
+template<typename NodeT>
+class DomTreeNodeBase
 {
-    template<bool Post>
+    template<typename Node, bool Post>
     friend class DominatorTreeBase;
 
 private:
-    Function::size_type num;    ///< The order of this node in dfs
-    BB* block;  ///< The basic block corresponding to this node.
-    DomTreeNode* idom;  ///< The immediate dominator of this node.
-    std::vector<DomTreeNode*> children;  ///< The child nodes of this node (those it dominates).
+    std::size_t num;    ///< The order of this node in dfs
+    NodeT* block;  ///< The basic block corresponding to this node.
+    DomTreeNodeBase* idom;  ///< The immediate dominator of this node.
+    std::vector<DomTreeNodeBase*> children;  ///< The child nodes of this node (those it dominates).
 
-    DomTreeNode(Function::size_type n, BB* bb):
+    DomTreeNodeBase(std::size_t n, NodeT* bb):
         num(n), block(bb), idom(nullptr) {}
 
 public:
@@ -37,13 +48,13 @@ public:
      * @brief Returns the basic block corresponding to this node.
      * @return The basic block corresponding to this node.
      */
-    BB* get_block() const noexcept { return block; }
+    NodeT* get_block() const noexcept { return block; }
 
     /**
      * @brief Returns the immediate dominator of this node.
      * @return The immediate dominator of this node.
      */
-    DomTreeNode* get_idom() const noexcept { return idom; }
+    DomTreeNodeBase* get_idom() const noexcept { return idom; }
 
     /**
      * @brief Returns the child nodes of this node.
@@ -56,31 +67,40 @@ public:
 };
 
 
+using DomTreeNode = DomTreeNodeBase<BB>;
+
+
 /**
- * @class DominatorTree
- * @brief Represents the dominator tree of a function.
+ * @class DominatorTreeBase
+ * @brief Represents the dominator tree of a graph.
  * 
- * A dominator tree is a tree where each node corresponds to a basic block, 
- * and each node's children are those blocks it immediately dominates.
+ * This class is a generic template over graph nodes. It is instantiated for
+ * various graphs in the LLVM IR or in the code generator.
  * 
+ * @tparam \c NodeT The block type.
  * @tparam \c Post Indicate whether it's a postdominator tree.
  */
-template<bool Post>
+template<typename NodeT, bool Post>
 class DominatorTreeBase
 {
 private:
-    std::unordered_map<BB*, DomTreeNode*> doms;
-    DomTreeNode* entry;
+    std::unordered_map<NodeT*, DomTreeNodeBase<NodeT>*> doms;
+    DomTreeNodeBase<NodeT>* entry;
     static constexpr bool IsPostDominator = Post;
 
 public:
+    using node_traits = DomTreeNodeTraits<NodeT>;
+    using parent_ptr = typename node_traits::parent_ptr;
+    using parent = typename node_traits::parent;
+
+
     DominatorTreeBase() = default;
 
     /**
      * @brief Construct a new \c DominatorTreeBase object for the given function.
      * @param func The function to construct the dominator tree for.
      */
-    DominatorTreeBase(Function* func) {
+    DominatorTreeBase(parent_ptr func) {
         recalculate(func);
     }
 
@@ -90,36 +110,36 @@ public:
      * @brief Recalculates the dominator tree for the given function.
      * @param func The function to recalculate the dominator tree for.
      */
-    void recalculate(Function* func);
+    void recalculate(parent_ptr func);
 
     /**
      * @brief Returns the dominator tree node corresponding to the given basic block.
      * @param block The basic block to get the dominator tree node for.
      * @return The dominator tree node corresponding to the given basic block.
      */
-    DomTreeNode* get_node(const BB* block) const noexcept;
+    DomTreeNodeBase<NodeT>* get_node(const NodeT* block) const noexcept;
 
     /**
      * @brief Returns the root node of the dominator tree.
      * @return The root node of the dominator tree.
      */
-    DomTreeNode* get_root() const noexcept { return entry; }
+    DomTreeNodeBase<NodeT>* get_root() const noexcept { return entry; }
 
 private:
-    DomTreeNode* intersect(DomTreeNode* lhs, DomTreeNode* rhs);
+    DomTreeNodeBase<NodeT>* intersect(DomTreeNodeBase<NodeT>* lhs, DomTreeNodeBase<NodeT>* rhs);
 };
 
 
-
-using DominatorTree = DominatorTreeBase<false>;
-using PostDominatorTree = DominatorTreeBase<true>;
-
+using DominatorTree = DominatorTreeBase<BB, false>;
+using PostDominatorTree = DominatorTreeBase<BB, true>;
 
 
-template<bool Post>
-DomTreeNode* DominatorTreeBase<Post>::get_node(const BB* block) const noexcept 
+
+template<typename NodeT, bool Post>
+DomTreeNodeBase<NodeT>* 
+DominatorTreeBase<NodeT, Post>::get_node(const NodeT* block) const noexcept 
 { 
-    auto iter = doms.find(const_cast<BB*>(block));
+    auto iter = doms.find(const_cast<NodeT*>(block));
     if (iter != doms.end()) {
         return iter->second;
     }
@@ -128,8 +148,9 @@ DomTreeNode* DominatorTreeBase<Post>::get_node(const BB* block) const noexcept
 }
 
 
-template<bool Post>
-DomTreeNode* DominatorTreeBase<Post>::intersect(DomTreeNode* lhs, DomTreeNode* rhs) 
+template<typename NodeT, bool Post>
+DomTreeNodeBase<NodeT>* 
+DominatorTreeBase<NodeT, Post>::intersect(DomTreeNodeBase<NodeT>* lhs, DomTreeNodeBase<NodeT>* rhs) 
 {
     while (lhs != rhs) 
     {
@@ -144,8 +165,8 @@ DomTreeNode* DominatorTreeBase<Post>::intersect(DomTreeNode* lhs, DomTreeNode* r
 }
 
 
-template<bool Post>
-DominatorTreeBase<Post>::~DominatorTreeBase()
+template<typename NodeT, bool Post>
+DominatorTreeBase<NodeT, Post>::~DominatorTreeBase()
 {
     for (auto iter = doms.begin(); iter != doms.end(); ++iter) {
         delete iter->second;
@@ -153,17 +174,17 @@ DominatorTreeBase<Post>::~DominatorTreeBase()
 }
 
 
-template<bool Post>
-void DominatorTreeBase<Post>::recalculate(Function* func) 
+template<typename NodeT, bool Post>
+void DominatorTreeBase<NodeT, Post>::recalculate(parent_ptr func) 
 {
     using GT = std::conditional_t<IsPostDominator, 
-                    InverseGraphTraits<Function>, 
-                    GraphTraits<Function>>;
+                    InverseGraphTraits<parent>, 
+                    GraphTraits<parent>>;
 
     int i = 0;
-    POTraversal<Function, GT> traversal(func);
+    POTraversal<parent, GT> traversal(func);
     for (auto iter = traversal.begin(); iter != traversal.end(); ++iter) {
-        doms[to_address(iter)] = new DomTreeNode(i, to_address(iter));
+        doms[to_address(iter)] = new DomTreeNodeBase<NodeT>(i, to_address(iter));
         ++i;
     }
 
@@ -176,7 +197,7 @@ void DominatorTreeBase<Post>::recalculate(Function* func)
         changed = false;
         for (auto bb = std::next(traversal.rbegin()); bb != traversal.rend(); ++bb) 
         {
-            DomTreeNode* new_idom = nullptr;
+            DomTreeNodeBase<NodeT>* new_idom = nullptr;
             bool first = true;
             for (auto&& pred = GT::parent_begin(to_address(bb)); pred != GT::parent_end(to_address(bb)); ++pred) {
                 if (doms[to_address(pred)]->idom) {
@@ -197,7 +218,7 @@ void DominatorTreeBase<Post>::recalculate(Function* func)
     }
 
     for (auto iter = doms.begin(); iter != doms.end(); ++iter) {
-        DomTreeNode* node = iter->second;
+        DomTreeNodeBase<NodeT>* node = iter->second;
         if (node != entry)
             node->idom->children.push_back(node);
     }
