@@ -1,3 +1,4 @@
+#include <fstream>
 #include "IRPrinter.hpp"
 #include "Module.hpp"
 #include "utils/util.hpp"
@@ -91,8 +92,7 @@ std::string IRPrinter::val_to_str(const Value *v)
     }
 
     if (val_to_num.find(v) == val_to_num.end()) {
-        val_to_num[v] = next_num;
-        ++next_num;
+        val_to_num[v] = val_to_num.size();
     }
 
     if (isa<BB>(v)) {
@@ -197,7 +197,6 @@ void IRPrinter::print(const BB *bb, std::ostream &os, bool debug)
         
         os << "  " << inst_to_str(to_address(iter)) << '\n';
     }
-    os << '\n';
 }
 
 
@@ -205,7 +204,6 @@ void IRPrinter::print(const BB *bb, std::ostream &os, bool debug)
 void IRPrinter::print(const Function *func, std::ostream &os, bool debug)
 {
     val_to_num.clear();
-    next_num = 0;
 
     std::string decl = "define " + ty_to_str(func->get_return_type()) + " @" + func->get_name() + "(";
 
@@ -221,6 +219,7 @@ void IRPrinter::print(const Function *func, std::ostream &os, bool debug)
 
     for (auto iter = func->begin(); iter != func->end(); ++iter) {
         print(to_address(iter), os, debug);
+        os << '\n';
     }
 
     os << "}\n\n";
@@ -238,4 +237,53 @@ void IRPrinter::print(const Module *m, std::ostream &os, bool debug)
     {
         print(to_address(func), os, debug);
     }
+}
+
+void IRPrinter::gen_dot_cfg(const Function* func, std::ostream &os, bool debug)
+{
+    val_to_num.clear();
+    std::unordered_map<const BB*, int> bb_to_num;
+
+    std::string decl = "define " + ty_to_str(func->get_return_type()) + " @" + func->get_name() + "(";
+    for (auto iter = func->param_begin(); iter != func->param_end(); ++iter) {
+        decl += val_to_str(to_address(iter));
+        if (iter + 1 < func->param_end()) {
+            decl += ", ";
+        }
+    }
+    decl += "):\n";
+    
+    os << "digraph g\n{\n";
+    for (auto bb = func->begin(); bb != func->end(); ++bb)
+    {
+        bb_to_num[to_address(bb)] = bb_to_num.size();
+        os << bb_to_num[to_address(bb)] << " [label=\"";
+
+        if (bb == func->begin()) {
+            os << decl;
+        }
+
+        print(to_address(bb), os, debug);
+        os << "\", shape=box]\n";
+    }
+
+    for (auto bb = func->begin(); bb != func->end(); ++bb)
+    {
+        for (auto&& successor: bb->successors())
+            os << bb_to_num[to_address(bb)] << " -> " << bb_to_num[&successor] << '\n';
+    }
+
+    os << "}";
+}
+
+
+void IRPrinter::gen_dot_cfg(const Function* func, const std::string& name, bool debug)
+{
+    std::ofstream file(name);
+    if (!file.is_open()) {
+        std::cerr << "unable to open file: " << name << '\n';
+        exit(EXIT_FAILURE);
+    }
+
+    gen_dot_cfg(func, file, debug);
 }

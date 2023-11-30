@@ -17,6 +17,7 @@ Note: Register allocation is not fully implemented yet.
 - Linux
 - CMake 3.18 or later
 - Python 3.8
+- graphviz 2.4 or later
 - C++17
 
 
@@ -48,7 +49,7 @@ The above command will compile `inputfile` and generate output.
 
 ## Examples
 For a C source function:
-```
+```c
 int f(int init)
 {
     int sum = init;
@@ -59,7 +60,7 @@ int f(int init)
 }
 ```
 `pcc` will generate the following ir:
-```
+```llvm
 define int @f(int %0) {
 %1:
   ptr %2 = alloca int
@@ -95,7 +96,7 @@ define int @f(int %0) {
 }
 ```
 After running mem2reg pass:
-```
+```llvm
 define int @f(int %0) {
 %1:
   br label: %2 (int 0, int %0)
@@ -116,7 +117,18 @@ define int @f(int %0) {
   ret int %4
 }
 ```
+We can use `IRPrinter` to produce corresponding CFG of IR:
+```c++
+#include "ir_core/IRPrinter.hpp"
 
+IRPrinter printer;
+printer.gen_dot_cfg(func, "sample.dot", false);
+```
+
+Then run command to get the graph:
+```bash
+dot sample.dot -T png -o sample.png
+```
 
 ## Contribution
 

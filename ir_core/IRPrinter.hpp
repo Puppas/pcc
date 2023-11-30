@@ -24,7 +24,7 @@ class Function;
 class IRPrinter 
 {
 public:
-    IRPrinter() : next_num(0) {}
+    IRPrinter() = default;
     IRPrinter(const IRPrinter&) = delete;
     IRPrinter& operator=(const IRPrinter&) = delete;
 
@@ -52,9 +52,28 @@ public:
      */
     void print(const Module *m, std::ostream &os, bool debug);
 
+    /**
+     * @brief Generate the dot text of \p func to stream \p os, which can be used by graphviz.
+     * 
+     * @param func The function to be printed.
+     * @param os The output stream.
+     * @param debug The print mode.
+     */
+    void gen_dot_cfg(const Function* func, std::ostream &os, bool debug);
+
+    /**
+     * @brief Generate dot text of \p func to file.
+     *  
+     * Note that this method will create a new file with \p name , if the file does not exist.
+     * 
+     * @param func The function to be printed.
+     * @param name The name of target file.
+     * @param debug The print mode.
+     */
+    void gen_dot_cfg(const Function* func, const std::string& name, bool debug);
+
 private:
     std::unordered_map<const Value*, int> val_to_num;
-    int next_num;
 
     std::string op_to_str(ValueKind kind);
     std::string ty_to_str(Type *ty);
